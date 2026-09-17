@@ -86,6 +86,11 @@ PNVB_SMS_PILOTE=log
 
 # Le back-office et l'API partagent le même domaine : laisser vide.
 CORS_ORIGINES=
+
+# Chemin du fichier d'import du référentiel. Le .env.example porte un chemin
+# Windows du poste de développement, sans aucun sens sur le serveur : le vider,
+# ou le faire pointer vers un fichier réellement téléversé.
+PNVB_FICHIER_REFERENTIEL=
 ```
 
 `APP_DEBUG=false` n'est pas cosmétique : à `true`, la moindre erreur afficherait
@@ -201,9 +206,22 @@ n'est pas configurée dans ce dépôt.
 
 ## 10. Vérifier que tout répond
 
+Il n'existe pas de route « état de santé » publique : toute l'API est derrière
+l'authentification. On vérifie donc par ce que le serveur **refuse**, ce qui
+prouve tout autant que la chaîne fonctionne.
+
 ```bash
-curl -i https://pnvb.moncompte.alwaysdata.net/api/v1/sante
+# Une route protegee, sans jeton : doit repondre 401, en JSON.
+curl -i https://pnvb.moncompte.alwaysdata.net/api/v1/alertes
+
+# Une route d'API inexistante : doit repondre 404, en JSON egalement.
+curl -i https://pnvb.moncompte.alwaysdata.net/api/v1/inexistant
 ```
+
+Le second appel est le plus instructif : s'il renvoie du **HTML avec un statut
+200**, c'est que la règle « attrape‑tout » de `routes/web.php` avale les
+adresses d'API. Le back-office continuerait de fonctionner, mais le téléphone
+— qui attend du JSON — échouerait sans message compréhensible.
 
 Puis, dans un navigateur, ouvrir l'adresse du site : l'écran de connexion du
 back-office doit s'afficher, et **recharger une page interne ne doit pas
