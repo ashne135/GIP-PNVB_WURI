@@ -8,6 +8,7 @@ use App\Http\Responses\ReponseApi;
 use App\Models\User;
 use App\Services\Comptes\GenerateurBordereauFormation;
 use App\Services\Comptes\ServiceRemiseIdentifiants;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -33,21 +34,37 @@ class RemiseIdentifiantsController extends Controller
     {
         $this->autoriserSuivi($requete);
 
-        $comptes = User::query()
+        $utilisateur = $requete->user();
+
+        $comptes = $this->comptesDuPerimetre($utilisateur)
             ->with(['volontaire:id,user_id,matricule,categorie,statut', 'remisesIdentifiants'])
-            ->whereHas('volontaire')
             ->when($requete->filled('etat_remise'),
                 fn ($q) => $q->where('etat_remise', $requete->string('etat_remise')))
+            ->when($requete->filled('statut_compte'),
+                fn ($q) => $q->where('statut_compte', $requete->string('statut_compte')))
             ->when($requete->filled('categorie'),
                 fn ($q) => $q->whereHas('volontaire',
                     fn ($r) => $r->where('categorie', $requete->string('categorie'))))
             ->when($requete->boolean('sans_courriel'), fn ($q) => $q->whereNull('email'))
+            // On désigne un agent par son nom, son téléphone ou son matricule :
+            // sans recherche, retrouver les trois agents d'un test obligerait à
+            // parcourir des pages entières.
+            ->when($requete->filled('recherche'), function ($q) use ($requete) {
+                $recherche = trim((string) $requete->string('recherche'));
+
+                $q->where(fn ($r) => $r
+                    ->where('nom', 'like', "%{$recherche}%")
+                    ->orWhere('prenoms', 'like', "%{$recherche}%")
+                    ->orWhere('telephone', 'like', "%{$recherche}%")
+                    ->orWhereHas('volontaire', fn ($v) => $v->where('matricule', 'like', "%{$recherche}%")));
+            })
             ->orderBy('nom')
             ->paginate(min($requete->integer('par_page', 50), 200));
 
         return ReponseApi::succes('Suivi des remises récupéré.', [
             'comptes' => $comptes,
-            'repartition' => $this->repartitionParEtat(),
+            'repartition' => $this->repartitionParEtat($utilisateur),
+            'canaux' => $this->canauxSimules(),
         ]);
     }
 
@@ -138,6 +155,10 @@ class RemiseIdentifiantsController extends Controller
             [
                 'session' => $resultat['session'],
                 'lignes' => $resultat['lignes'],
+                // Le nom seul, en plus de l'adresse : servie sous un sous-chemin,
+                // l'application ne peut pas se fier à l'adresse absolue que
+                // construit route(), qui ignore ce préfixe.
+                'fichier' => basename($resultat['chemin']),
                 'url_telechargement' => route('api.comptes.bordereau.telecharger', [
                     'fichier' => basename($resultat['chemin']),
                 ]),
@@ -156,11 +177,42 @@ class RemiseIdentifiantsController extends Controller
         return Storage::download($chemin);
     }
 
-    /** Combien de comptes dans chaque état : le chiffre clé de l'écran de suivi. */
-    private function repartitionParEtat(): array
+    /**
+     * Les comptes de volontaires que l'utilisateur a le droit de voir.
+     *
+     * Le chef d'antenne régional détient le droit de consulter : sans ce
+     * filtre, il lisait les téléphones et courriels de tout le pays. Un
+     * volontaire importé mais pas encore affecté n'appartient à aucune région :
+     * il reste du ressort de l'administration nationale.
+     */
+    private function comptesDuPerimetre(User $utilisateur): Builder
     {
-        $repartition = User::query()
-            ->whereHas('volontaire')
+        return User::query()->whereHas(
+            'volontaire',
+            fn (Builder $q) => $q->perimetre($utilisateur)
+        );
+    }
+
+    /**
+     * Les canaux qui n'envoient RIEN pour de vrai.
+     *
+     * Avec le pilote « log », un courriel ou un SMS est écrit dans les journaux
+     * du serveur et compté comme envoyé. L'écran doit le dire : sinon on attend
+     * un message qui ne partira jamais, et le mot de passe qu'il portait est
+     * perdu.
+     */
+    private function canauxSimules(): array
+    {
+        return [
+            'courriel_simule' => in_array(config('mail.default'), ['log', 'array'], true),
+            'sms_simule' => config('pnvb.sms.pilote', 'log') !== 'http',
+        ];
+    }
+
+    /** Combien de comptes dans chaque état : le chiffre clé de l'écran de suivi. */
+    private function repartitionParEtat(User $utilisateur): array
+    {
+        $repartition = $this->comptesDuPerimetre($utilisateur)
             ->selectRaw('etat_remise, COUNT(*) as nombre')
             ->groupBy('etat_remise')
             ->pluck('nombre', 'etat_remise');

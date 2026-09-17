@@ -75,7 +75,7 @@ export const entrees = [
             },
             {
                 chemin: '/volontaires',
-                libelle: 'Registre des volontaires',
+                libelle: 'Volontaires',
                 permissions: ['volontaires.consulter'],
             },
             {

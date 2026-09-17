@@ -169,7 +169,7 @@ class ImportVolontairesController extends Controller
                         $d['telephone'] ?? '',
                         $d['email'] ?? '',
                         $d['categorie'] ?? '',
-                        $d['localite'] ?? '',
+                        $this->localiteDeLaLigne($d),
                     ], ';');
                 }
             });
@@ -179,11 +179,8 @@ class ImportVolontairesController extends Controller
     }
 
     /**
-     * Modèle de fichier à remplir.
-     *
-     * Le canevas du fichier des retenus n'a pas encore été fourni par le client
-     * (cadrage, Partie D) : ce modèle montre les colonnes attendues et les
-     * valeurs acceptées, en attendant le vrai.
+     * Modèle de fichier à remplir : les colonnes du fichier réel du client
+     * (cadrage v2, section 6), dans son ordre, avec une ligne par profil.
      */
     public function modele(): StreamedResponse
     {
@@ -199,6 +196,26 @@ class ImportVolontairesController extends Controller
 
             fclose($sortie);
         }, 'modele-import-volontaires.csv', ['Content-Type' => 'text/csv; charset=UTF-8']);
+    }
+
+    /**
+     * La localité telle que le fichier la nomme. Le canevas n'a pas de colonne
+     * « localité » : il en a trois — village, secteur, quartier — dont une
+     * seule est remplie. Lire une clé « localite » rendait toujours du vide.
+     */
+    private function localiteDeLaLigne(array $donnees): string
+    {
+        foreach (CanevasVolontaires::COLONNES_LOCALITE as $colonne) {
+            $nom = trim((string) ($donnees[$colonne] ?? ''));
+
+            if ($nom !== '') {
+                $commune = trim((string) ($donnees['commune'] ?? ''));
+
+                return $commune !== '' ? "{$nom} ({$commune})" : $nom;
+            }
+        }
+
+        return '';
     }
 
     private function resumerAnalyse(Import $import): string

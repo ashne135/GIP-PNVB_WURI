@@ -1,10 +1,10 @@
-import { useListe } from '../outils/crochets';
-import { EnTetePage } from '../composants/Page';
-import { Pagination, Pastille, Tableau } from '../composants/Tableau';
-import { BarreFiltres, FiltreListe } from '../composants/Filtres';
-import { Chargement } from '../composants/Chargement';
-import { Echec, Vide } from '../composants/Etats';
-import { humaniser, nomDe } from '../outils/format';
+import { useListe } from '../../outils/crochets';
+import { Pagination, Pastille, Tableau } from '../../composants/Tableau';
+import { BarreFiltres, FiltreListe, FiltreTexte } from '../../composants/Filtres';
+import { Chargement } from '../../composants/Chargement';
+import { Echec, Vide } from '../../composants/Etats';
+import { humaniser, nomDe } from '../../outils/format';
+import { categories, libelleCategorie, statutsCompte } from '../../domaine/volontaires';
 
 /**
  * LE REGISTRE DES VOLONTAIRES.
@@ -16,29 +16,26 @@ import { humaniser, nomDe } from '../outils/format';
  *
  * Le périmètre est appliqué côté serveur : un chef d'antenne voit sa région.
  */
-export function Volontaires() {
+export function Registre() {
     const liste = useListe('volontaires', '/volontaires');
 
     const tonStatut = { operationnel: 'bon', reserve: 'attention', retire: 'neutre' };
 
     return (
         <>
-            <EnTetePage
-                titre="Registre des volontaires"
-                sousTitre="Les trois catégories sont étanches : un assistant ne devient jamais opérateur."
-            />
-
             <BarreFiltres onReinitialiser={liste.reinitialiser}>
+                <FiltreTexte
+                    libelle="Recherche"
+                    valeur={liste.filtres.recherche}
+                    onChange={(v) => liste.changerFiltre('recherche', v)}
+                    placeholder="Nom, téléphone ou matricule"
+                />
                 <FiltreListe
                     libelle="Catégorie"
                     valeur={liste.filtres.categorie}
                     onChange={(v) => liste.changerFiltre('categorie', v)}
                     tous="Toutes"
-                    options={[
-                        { valeur: 'superviseur', libelle: 'Superviseur de centre' },
-                        { valeur: 'operateur', libelle: 'Opérateur de kit' },
-                        { valeur: 'assistant', libelle: 'Assistant (A-OPK)' },
-                    ]}
+                    options={categories}
                 />
                 <FiltreListe
                     libelle="Statut"
@@ -68,12 +65,17 @@ export function Volontaires() {
                                 cle: 'categorie',
                                 titre: 'Catégorie',
                                 compact: true,
-                                rendu: (v) => (v.categorie ? humaniser(v.categorie) : <Pastille ton="attention">à qualifier</Pastille>),
+                                rendu: (v) => (v.categorie ? libelleCategorie(v.categorie) : <Pastille ton="attention">à qualifier</Pastille>),
                             },
                             { cle: 'statut', titre: 'Statut', compact: true, rendu: (v) => <Pastille ton={tonStatut[v.statut] ?? 'neutre'}>{humaniser(v.statut)}</Pastille> },
                             { cle: 'localite', titre: 'Localité', rendu: (v) => v.localite?.nom ?? '—' },
                             { cle: 'telephone', titre: 'Téléphone', compact: true, rendu: (v) => v.user?.telephone ?? '—' },
-                            { cle: 'compte', titre: 'Accès', compact: true, rendu: (v) => humaniser(v.user?.statut_compte) },
+                            {
+                                cle: 'compte',
+                                titre: 'Accès',
+                                compact: true,
+                                rendu: (v) => statutsCompte[v.user?.statut_compte]?.libelle ?? humaniser(v.user?.statut_compte),
+                            },
                         ]}
                     />
                     <Pagination page={liste.pagination} onPage={liste.setPage} />

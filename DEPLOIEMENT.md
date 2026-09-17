@@ -420,6 +420,35 @@ produire de 404**.
 
 ---
 
+## 11. Préparer un essai sur téléphone
+
+Un volontaire importé **ne peut pas se connecter** : son compte naît inactif,
+et seule une affectation l'ouvre. L'ordre ci-dessous n'est donc pas une
+suggestion, chaque étape s'appuie sur la précédente.
+
+| # | Où | Quoi | Pourquoi c'est nécessaire |
+|---|----|------|---------------------------|
+| 1 | Centres et sites › Importer | Les centres et leurs sites | Une vague ouvre des centres ; sans eux, le tirage refuse de partir |
+| 2 | Parc de kits | Au moins un kit **fonctionnel** par opérateur, sans détenteur | Un opérateur sans kit est signalé et reste sans passage |
+| 3 | Volontaires › Importer les retenus | Le fichier des retenus (modèle et canevas sur l'écran) | Crée les comptes, inactifs |
+| 4 | Volontaires › Profils à attribuer | Un profil pour chaque fiche importée sans « Profil » | Une fiche sans profil n'entre dans aucun tirage |
+| 5 | Vagues › Planifier | Une vague sur la région des centres, puis tirage et validation | La validation **ouvre l'accès** des agents retenus |
+| 6 | Volontaires › Identifiants | Cocher les agents de l'essai, générer le bordereau PDF | Seul document qui porte le mot de passe en clair |
+| 7 | Téléphone | Se connecter avec le numéro et le mot de passe du bordereau | Le changement de mot de passe est demandé à la première connexion |
+
+Pour un essai, il suffit d'un petit fichier : un superviseur, deux opérateurs
+et deux A-OPK dont le **village** est celui d'un site des centres ouverts.
+L'A-OPK est rattaché à sa localité : un A-OPK d'une autre région ne sera
+jamais tiré sur ces centres.
+
+> **Les courriels et les SMS ne partent pas** tant que `MAIL_MAILER=log` et
+> `PNVB_SMS_PILOTE=log` : l'ouverture d'un accès « envoie » bien les
+> identifiants, mais dans le journal technique. L'écran Identifiants l'annonce
+> en tête. Le bordereau régénère le mot de passe : c'est celui du bordereau
+> qui vaut, jamais un plus ancien.
+
+---
+
 ## En cas de page blanche
 
 | Symptôme | Cause la plus fréquente |

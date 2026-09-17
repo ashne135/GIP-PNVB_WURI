@@ -20,7 +20,11 @@ import { Exports } from './pages/Exports';
 import { ListeKits } from './pages/kits/ListeKits';
 import { KitsNonRestitues } from './pages/kits/KitsNonRestitues';
 import { FicheKit } from './pages/kits/FicheKit';
-import { Volontaires } from './pages/Volontaires';
+import { EspaceVolontaires } from './pages/volontaires/EspaceVolontaires';
+import { Registre } from './pages/volontaires/Registre';
+import { ImportVolontaires } from './pages/volontaires/ImportVolontaires';
+import { Qualification } from './pages/volontaires/Qualification';
+import { RemiseIdentifiants } from './pages/volontaires/RemiseIdentifiants';
 import { Vagues } from './pages/Vagues';
 import { PlanifierVague } from './pages/vagues/PlanifierVague';
 import { FicheVague } from './pages/vagues/FicheVague';
@@ -111,7 +115,12 @@ export function App() {
                 <Route path="/kits/non-restitues" element={<Protege permission="kits.consulter"><KitsNonRestitues /></Protege>} />
                 <Route path="/kits/:id" element={<Protege permission="kits.consulter"><FicheKit /></Protege>} />
 
-                <Route path="/volontaires" element={<Protege permission="volontaires.consulter"><Volontaires /></Protege>} />
+                <Route element={<Protege permission="volontaires.consulter"><EspaceVolontaires /></Protege>}>
+                    <Route path="/volontaires" element={<Registre />} />
+                    <Route path="/volontaires/import" element={<Protege permission="volontaires.importer"><ImportVolontaires /></Protege>} />
+                    <Route path="/volontaires/a-qualifier" element={<Protege permission="volontaires.qualifier"><Qualification /></Protege>} />
+                    <Route path="/volontaires/identifiants" element={<Protege permission="comptes.consulter"><RemiseIdentifiants /></Protege>} />
+                </Route>
                 <Route path="/vagues" element={<Protege permission="vagues.consulter"><Vagues /></Protege>} />
                 <Route path="/vagues/planifier" element={<Protege permission="vagues.planifier"><PlanifierVague /></Protege>} />
                 <Route path="/vagues/:id" element={<Protege permission="vagues.consulter"><FicheVague /></Protege>} />

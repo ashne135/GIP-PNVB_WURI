@@ -136,6 +136,13 @@ class ValidateurLigneVolontaire
             }
 
             $donnees['localite_id'] = $resolution['id'];
+        } elseif ($profil === null) {
+            // Profil encore inconnu : si la fiche devient un A-OPK à la
+            // qualification, sa localité sera exigée. On la retient donc dès
+            // maintenant quand le fichier la nomme sans ambiguïté — sans en
+            // faire un motif de rejet, puisque rien n'oblige encore à l'avoir.
+            // Pour un autre profil, la qualification l'effacera.
+            $donnees['localite_id'] = $this->resoudreLocalite($donnees)['id'];
         }
 
         // ---------- Champs facultatifs ----------

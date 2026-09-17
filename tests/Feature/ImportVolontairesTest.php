@@ -221,6 +221,41 @@ it('accepte une ligne sans profil et la place « à qualifier »', function () {
     expect($volontaire->matricule)->toStartWith('PNVB-AQU');
 });
 
+it('retient la localité d\'une ligne sans profil, pour une qualification en A-OPK', function () {
+    televerser([
+        // Sans profil, avec son village : la localité est gardée.
+        ligneRetenu(['profil' => '', 'commune' => 'Bagassi', 'village' => 'Assio']),
+        // Sans profil, village inconnu : ce n'est PAS une erreur — le profil
+        // n'est pas encore connu, rien n'oblige à avoir une localité.
+        ligneRetenu(['n' => '2', 'profil' => '', 'telephone' => '76234567',
+            'cnib' => 'B2345678', 'email' => 'x@exemple.bf', 'nom' => 'ZONGO',
+            'village' => 'Village inexistant']),
+    ])->assertStatus(201);
+
+    $import = Import::query()->latest()->first();
+    expect($import->lignes_valides)->toBe(2);
+
+    $this->postJson("/api/v1/imports/volontaires/{$import->id}/confirmer")->assertOk();
+
+    $avecVillage = Volontaire::query()->whereHas('user', fn ($q) => $q->where('nom', 'OUEDRAOGO'))->first();
+    $sansVillage = Volontaire::query()->whereHas('user', fn ($q) => $q->where('nom', 'ZONGO'))->first();
+
+    expect($avecVillage->localite_id)->toBe($this->localite->id);
+    expect($sansVillage->localite_id)->toBeNull();
+
+    // La qualification en A-OPK passe sans ressaisir la localité.
+    $this->postJson('/api/v1/volontaires/a-qualifier', [
+        'qualifications' => [
+            ['volontaire_id' => $avecVillage->id, 'categorie' => 'assistant'],
+            ['volontaire_id' => $sansVillage->id, 'categorie' => 'assistant'],
+        ],
+    ])->assertOk()
+        ->assertJsonPath('data.qualifiees.0.volontaire_id', $avecVillage->id)
+        ->assertJsonPath('data.refusees.0.volontaire_id', $sansVillage->id);
+
+    expect($avecVillage->fresh()->categorie)->toBe(CategorieVolontaire::Assistant);
+});
+
 it('exige le territoire pour un A-OPK, pas pour les autres profils', function () {
     televerser([
         // A-OPK sans village : refusé, il est rattaché en permanence à sa localité.
@@ -329,6 +364,22 @@ it('interdit l\'import à qui n\'a pas le droit volontaires.importer', function 
     televerser([ligneRetenu()])->assertStatus(403);
 
     expect(Import::count())->toBe(0);
+});
+
+it('nomme la localité d\'un A-OPK dans le compte rendu', function () {
+    // Le canevas n'a pas de colonne « localité » : village, secteur ou
+    // quartier. La colonne du compte rendu restait donc toujours vide.
+    televerser([
+        ligneRetenu(['profil' => 'A-OPK', 'commune' => 'Bagassi', 'village' => 'Assio']),
+    ])->assertStatus(201);
+
+    $import = Import::query()->latest()->first();
+
+    $contenu = $this->get("/api/v1/imports/volontaires/{$import->id}/compte-rendu")
+        ->assertOk()
+        ->streamedContent();
+
+    expect($contenu)->toContain('Assio (Bagassi)');
 });
 
 it('produit un compte rendu téléchargeable, motifs compris', function () {
