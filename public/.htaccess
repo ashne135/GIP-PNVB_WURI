@@ -1,3 +1,20 @@
+# LE BACK-OFFICE EST UNE APPLICATION À PAGE UNIQUE : sa page est index.html,
+# déposé ici à côté du point d'entrée de Laravel.
+#
+# Laravel ne déclare aucun index par défaut. Sur un serveur qui ne connaît que
+# « index.php » — le cas d'alwaysdata — la racine du site renvoie alors 403,
+# alors que l'API répond normalement : symptôme déroutant, puisque tout le
+# reste fonctionne. Constaté en déploiement réel.
+#
+# index.html EN PREMIER, pour que la racine serve le back-office. Tout ce qui
+# n'est pas un fichier réel reste réécrit plus bas vers index.php, donc vers
+# Laravel : les adresses d'API et les routes internes ne sont pas touchées.
+#
+# Hors du bloc mod_rewrite à dessein : DirectoryIndex relève de mod_dir.
+<IfModule mod_dir.c>
+    DirectoryIndex index.html index.php
+</IfModule>
+
 <IfModule mod_rewrite.c>
     <IfModule mod_negotiation.c>
         Options -MultiViews -Indexes

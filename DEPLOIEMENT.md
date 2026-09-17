@@ -320,10 +320,48 @@ produire de 404**.
 
 | Symptôme | Cause la plus fréquente |
 |---|---|
+| **403 sur la racine, alors que l'API répond** | Aucun `DirectoryIndex` : voir ci-dessous |
+| **403 sur tout, y compris l'API** | Permissions du clone : voir ci-dessous |
 | Erreur 500 sans détail | `APP_KEY` absente — relancer `php artisan key:generate` |
+| 500 sur l'API seule, le back-office s'affichant | Identifiants de base : `storage/logs/laravel.log` donne le message exact |
 | 404 sur toutes les pages sauf l'accueil | Répertoire racine mal placé, ou `dist/` non copié dans `public/` |
 | Écran de connexion sans réponse | `APP_URL` ne correspond pas à l'adresse réelle |
 | Erreur de base au premier appel | Hôte MySQL : sur alwaysdata c'est `mysql-moncompte.alwaysdata.net`, pas `127.0.0.1` |
+
+### Les deux pièges rencontrés en conditions réelles
+
+**1. `git clone` produit des fichiers qu'Apache ne peut pas lire.**
+
+Selon le masque du compte, le clone crée des dossiers en `770` et des fichiers
+en `660` — donc **aucun droit pour « autres »**. Apache, qui ne tourne pas sous
+votre compte, ne peut même pas traverser le dossier : tout renvoie **403**,
+avant même que PHP soit appelé.
+
+```bash
+chmod o+x ~/www/pnvb
+chmod -R o+rX ~/www/pnvb/public
+chmod o+x ~/www/pnvb/storage ~/www/pnvb/storage/app
+chmod -R o+rX ~/www/pnvb/storage/app/public
+chmod 640 ~/www/pnvb/.env          # et surtout PAS o+r sur celui-ci
+```
+
+N'ouvrez **pas** en bloc avec un `chmod -R o+rX` sur tout le projet : sur un
+hébergement mutualisé, cela rendrait votre `.env` — donc le mot de passe de la
+base — lisible par les autres comptes du serveur.
+
+**2. Laravel ne déclare aucun index par défaut.**
+
+`public/.htaccess` ne contient pas de `DirectoryIndex`. Si le serveur ne
+connaît que `index.php`, la racine du site renvoie **403** alors que l'API
+répond normalement — symptôme déroutant, puisque tout le reste fonctionne. La
+ligne est désormais dans le dépôt :
+
+```apache
+DirectoryIndex index.html index.php
+```
+
+`index.html` en premier pour que la racine serve le back-office ; tout ce qui
+n'est pas un fichier réel reste réécrit vers `index.php`, donc vers Laravel.
 
 Après toute modification du `.env` :
 
