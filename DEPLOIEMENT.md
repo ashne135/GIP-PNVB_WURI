@@ -202,6 +202,22 @@ Pour une remise en main propre, la version `--debug` suffit et s'installe sans
 signature. Une version `--release` exige une clé de signature Android, qui
 n'est pas configurée dans ce dépôt.
 
+### Alléger l'APK pour les téléphones 32 bits
+
+Sans précision, Flutter embarque **toutes** les architectures : l'APK pèse
+alors plus du double (≈ 205 Mo contre ≈ 109 Mo). Il fonctionne partout, mais le
+transfert par câble est deux fois plus long et l'espace occupé sur un téléphone
+d'entrée de gamme devient gênant.
+
+```bash
+flutter build apk --debug --target-platform android-arm \
+  --dart-define=URL_API=https://pnvb.moncompte.alwaysdata.net/api/v1
+```
+
+`android-arm` vise `armeabi-v7a`, l'architecture des appareils 32 bits. À
+n'utiliser que si le parc est homogène : un téléphone 64 bits accepte cet APK,
+mais un APK compilé pour `android-arm64` ne s'installerait pas sur un 32 bits.
+
 ---
 
 ## 10. Vérifier que tout répond
