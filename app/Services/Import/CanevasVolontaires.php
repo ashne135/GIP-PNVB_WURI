@@ -11,8 +11,13 @@ use Illuminate\Support\Str;
  *   N° · Email Address · numéro · Nom · Prénom(s) · Date de naissance ·
  *   Lieu de naissance · Sexe · N° CNIB / Passeport ·
  *   Date d'établissement de la CNIB / du Passeport · Profil ·
+ *   Niveau d'étude · Diplôme ·
  *   Region · Province · commune · arrondissement · secteur · quartier ·
  *   village · site
+ *
+ * NIVEAU D'ÉTUDE et DIPLÔME ont été ajoutés le 17/09/2026 à la demande du
+ * client : le niveau commande le profil, l'intitulé du diplôme documente le
+ * dossier.
  *
  * La reconnaissance des en-têtes reste SOUPLE — insensible à la casse, aux
  * accents, aux espaces et à la ponctuation — parce que le fichier vient d'un
@@ -81,6 +86,23 @@ class CanevasVolontaires
         ],
         'profil' => [
             'intitules' => ['profil', 'poste', 'fonction', 'type de volontaire'],
+            'obligatoire' => false,
+        ],
+        /*
+         * LE NIVEAU D'ÉTUDE commande le profil (décision du client, 17/09/2026) :
+         * 4ème pour un A-OPK, BAC+1 pour un opérateur, Licence pour un
+         * superviseur. Il porte une valeur de l'échelle, seule forme comparable.
+         * Le DIPLÔME, lui, est l'intitulé exact — il s'affiche, il ne se compare
+         * jamais.
+         */
+        'niveau_etude' => [
+            'intitules' => ['niveau d etude', 'niveau d etudes', 'niveau', 'niveau scolaire',
+                'niveau d instruction', 'niveau academique', 'niveau atteint'],
+            'obligatoire' => false,
+        ],
+        'diplome' => [
+            'intitules' => ['diplome', 'diplomes', 'dernier diplome', 'diplome obtenu',
+                'intitule du diplome', 'qualification'],
             'obligatoire' => false,
         ],
         // ---- Bloc territorial : obligatoire pour les A-OPK seulement ----
@@ -269,6 +291,7 @@ class CanevasVolontaires
             'N°', 'Email Address', 'numéro', 'Nom', 'Prénom(s)', 'Date de naissance',
             'Lieu de naissance', 'Sexe', 'N° CNIB / Passeport',
             "Date d'établissement de la CNIB / du Passeport", 'Profil',
+            "Niveau d'étude", 'Diplôme',
             'Region', 'Province', 'commune', 'arrondissement', 'secteur', 'quartier',
             'village', 'site',
         ];
@@ -280,13 +303,16 @@ class CanevasVolontaires
         return [
             ['1', 'aminata.ouedraogo@exemple.bf', '70123456', 'OUEDRAOGO', 'Aminata',
                 '15/04/1992', 'Ouagadougou', 'Féminin', 'B1234567', '12/03/2018',
-                'Superviseur de centre', '', '', '', '', '', '', '', ''],
+                'Superviseur de centre', 'Licence', 'Licence en sociologie',
+                '', '', '', '', '', '', '', ''],
             ['2', 'issa.kabore@exemple.bf', '76234567', 'KABORE', 'Issa',
                 '02/11/1995', 'Bobo-Dioulasso', 'Masculin', 'B2345678', '05/07/2019',
-                'Opérateur de kit', '', '', '', '', '', '', '', ''],
+                'Opérateur de kit', 'BAC+2', 'BTS en informatique',
+                '', '', '', '', '', '', '', ''],
             ['3', '', '65345678', 'SAWADOGO', 'Fatimata',
                 '21/07/1998', 'Bagassi', 'Féminin', 'B3456789', '18/01/2020',
-                'A-OPK', 'Bankui', 'Bale', 'Bagassi', '', '', '', 'Assio', ''],
+                'A-OPK', '3ème', 'BEPC',
+                'Bankui', 'Bale', 'Bagassi', '', '', '', 'Assio', ''],
         ];
     }
 }

@@ -8,6 +8,49 @@
  * le serveur qui a raison — et ce fichier qui doit être corrigé.
  */
 
+/**
+ * L'ÉCHELLE DES NIVEAUX D'ÉTUDE, dans l'ordre : c'est le RANG qui se compare,
+ * jamais le libellé. Elle double celle du serveur (App\Enums\NiveauEtude) —
+ * en cas d'écart, c'est le serveur qui fait foi, et lui seul qui refuse.
+ */
+export const niveauxEtude = [
+    { valeur: 'aucun', libelle: 'Aucun niveau scolaire', rang: 0 },
+    { valeur: 'cep', libelle: 'CEP (primaire)', rang: 1 },
+    { valeur: 'quatrieme', libelle: 'Classe de 4ème', rang: 2 },
+    { valeur: 'troisieme_bepc', libelle: '3ème ou BEPC', rang: 3 },
+    { valeur: 'bac', libelle: 'BAC', rang: 4 },
+    { valeur: 'bac_plus_1', libelle: 'BAC+1', rang: 5 },
+    { valeur: 'bac_plus_2', libelle: 'BAC+2', rang: 6 },
+    { valeur: 'licence', libelle: 'Licence (BAC+3)', rang: 7 },
+    { valeur: 'master', libelle: 'Master (BAC+5) ou plus', rang: 8 },
+];
+
+export function libelleNiveau(valeur) {
+    return niveauxEtude.find((n) => n.valeur === valeur)?.libelle ?? null;
+}
+
+export function rangNiveau(valeur) {
+    return niveauxEtude.find((n) => n.valeur === valeur)?.rang ?? null;
+}
+
+/** Le niveau exigé pour tenir un profil. Le serveur revérifie, et peut déroger. */
+export const minimumsProfil = {
+    assistant: 'quatrieme',
+    operateur: 'bac_plus_1',
+    superviseur: 'licence',
+};
+
+export function niveauSuffit(niveau, categorie) {
+    const exige = rangNiveau(minimumsProfil[categorie]);
+    const atteint = rangNiveau(niveau);
+
+    if (exige === null) {
+        return true;
+    }
+
+    return atteint !== null && atteint >= exige;
+}
+
 export const categories = [
     { valeur: 'superviseur', libelle: 'Superviseur de centre' },
     { valeur: 'operateur', libelle: 'Opérateur de kit' },
@@ -95,6 +138,18 @@ export const colonnesCanevas = [
         exigence: 'facultative',
         valeurs: 'Superviseur de centre (ou SUP), Opérateur de kit (ou OPK), A-OPK (ou Assistant). '
             + 'Vide : la fiche est importée « à qualifier » et doit recevoir un profil avant toute vague.',
+    },
+    {
+        intitule: 'Niveau d’étude',
+        exigence: 'pour le profil',
+        valeurs: 'Aucun, CEP, 4ème, 3ème ou BEPC, BAC, BAC+1, BAC+2, Licence, Master. '
+            + 'Il commande le profil : 4ème pour un A-OPK, BAC+1 pour un opérateur, Licence pour un superviseur. '
+            + 'Un profil que le niveau ne permet pas n’est pas appliqué : la fiche part « à qualifier ».',
+    },
+    {
+        intitule: 'Diplôme',
+        exigence: 'facultative',
+        valeurs: 'L’intitulé exact, en toutes lettres (« Licence en gestion »). Affiché sur la fiche, jamais comparé.',
     },
     { intitule: 'Region', exigence: 'facultative', valeurs: 'Nom ou code d’une région du référentiel.' },
     { intitule: 'Province', exigence: 'facultative', valeurs: 'Lue, non utilisée.' },

@@ -6,6 +6,7 @@ import { ErreurApi } from '../src/api/client';
 import { ImportVolontaires } from '../src/pages/volontaires/ImportVolontaires';
 import { Qualification } from '../src/pages/volontaires/Qualification';
 import { RemiseIdentifiants } from '../src/pages/volontaires/RemiseIdentifiants';
+import { Registre } from '../src/pages/volontaires/Registre';
 
 /**
  * LE CHEMIN DU FICHIER DES RETENUS JUSQU'AU TÉLÉPHONE.
@@ -25,6 +26,7 @@ import { RemiseIdentifiants } from '../src/pages/volontaires/RemiseIdentifiants'
 const appels = vi.hoisted(() => ({
     lire: vi.fn(),
     creer: vi.fn(),
+    modifier: vi.fn(),
     agir: vi.fn(),
     supprimer: vi.fn(),
     telecharger: vi.fn(),
@@ -369,5 +371,140 @@ describe('Remise des identifiants', () => {
         await screen.findByText('PNVB-OPK000001');
         expect(screen.queryByLabelText('Cocher toute la page')).not.toBeInTheDocument();
         expect(screen.queryByRole('checkbox', { name: /Choisir/ })).not.toBeInTheDocument();
+    });
+});
+
+// ---------------------------------------------------------------------------
+// Registre : fiche, niveau d'étude, retrait
+// ---------------------------------------------------------------------------
+
+const ficheRegistre = (surcharge = {}) => ({
+    id: 41,
+    matricule: 'PNVB-OPK000001',
+    categorie: 'operateur',
+    statut: 'operationnel',
+    niveau_etude: 'bac_plus_2',
+    diplome: 'BTS en informatique',
+    localite: null,
+    user: { id: 91, nom: 'KABORE', prenoms: 'Issa', telephone: '+22676234567', email: null, statut_compte: 'actif' },
+    ...surcharge,
+});
+
+describe('Registre des volontaires', () => {
+    it('corrige une fiche sans jamais proposer la catégorie ni le matricule', async () => {
+        appels.lire.mockImplementation((url) => (url.startsWith('/volontaires/41')
+            ? Promise.resolve({ volontaire: ficheRegistre(), numero_cnib: 'B1234567' })
+            : Promise.resolve(paginee([ficheRegistre()]))));
+        appels.modifier.mockResolvedValue({ message: 'Fiche enregistrée.', donnees: {} });
+
+        monter(<Registre />);
+
+        expect(await screen.findByText('BAC+2')).toBeInTheDocument();
+        fireEvent.click(screen.getByRole('button', { name: 'Modifier' }));
+
+        const formulaire = screen.getByRole('form', { name: 'Fiche du volontaire' });
+        expect(within(formulaire).queryByLabelText(/Catégorie/)).not.toBeInTheDocument();
+        expect(within(formulaire).queryByLabelText(/Matricule/)).not.toBeInTheDocument();
+        expect(await within(formulaire).findByText(/B1234567/)).toBeInTheDocument();
+
+        fireEvent.change(within(formulaire).getByLabelText(/^Niveau d’étude/), { target: { value: 'licence' } });
+        fireEvent.change(within(formulaire).getByLabelText(/^Diplôme/), { target: { value: 'Licence en gestion' } });
+        fireEvent.click(within(formulaire).getByRole('button', { name: 'Enregistrer' }));
+
+        await screen.findByText('Fiche enregistrée.');
+        expect(appels.modifier).toHaveBeenCalledWith('/volontaires/41', expect.objectContaining({
+            niveau_etude: 'licence', diplome: 'Licence en gestion', nom: 'KABORE', telephone: '+22676234567',
+        }));
+    });
+
+    it('signale un profil tenu par dérogation', async () => {
+        appels.lire.mockResolvedValue(paginee([ficheRegistre({
+            categorie: 'superviseur', niveau_etude: 'bac', derogation_niveau_motif: 'Dix ans d’expérience.',
+        })]));
+
+        monter(<Registre />);
+
+        expect(await screen.findByText('BAC — dérogation')).toBeInTheDocument();
+    });
+
+    it('retire un lot de fiches avec un motif', async () => {
+        appels.lire.mockResolvedValue(paginee([ficheRegistre(), ficheRegistre({ id: 42, matricule: 'PNVB-OPK000002' })]));
+        appels.agir.mockResolvedValue({
+            message: '1 fiches retirées. 1 n’ont pas pu l’être : consultez le détail.',
+            donnees: { retires: [{ volontaire_id: 41 }], refusees: [{ matricule: 'PNVB-OPK000002', motif: 'engagée dans une vague' }] },
+        });
+
+        monter(<Registre />);
+
+        fireEvent.click(await screen.findByLabelText('Cocher toute la page'));
+        fireEvent.click(screen.getByRole('button', { name: 'Retirer du dispositif' }));
+
+        const formulaire = screen.getByRole('form', { name: 'Retirer 2 fiches du dispositif' });
+        const bouton = within(formulaire).getByRole('button', { name: 'Retirer les fiches choisies' });
+        expect(bouton).toBeDisabled();
+
+        fireEvent.change(within(formulaire).getByLabelText(/Motif/), { target: { value: 'Fin de collaboration' } });
+        fireEvent.click(bouton);
+
+        await screen.findByText(/1 fiches retirées/);
+        expect(appels.agir).toHaveBeenCalledWith('/volontaires/retrait-en-lot', {
+            volontaire_ids: [41, 42], motif: 'Fin de collaboration',
+        });
+        // Le détail des refus est repris dans le message.
+        expect(screen.getByText(/PNVB-OPK000002 : engagée dans une vague/)).toBeInTheDocument();
+    });
+
+    it('n’offre ni modification ni retrait sans le droit', async () => {
+        session.valeur = { peut: (droit) => droit !== 'volontaires.modifier' };
+        appels.lire.mockResolvedValue(paginee([ficheRegistre()]));
+
+        monter(<Registre />);
+
+        await screen.findByText('PNVB-OPK000001');
+        expect(screen.queryByRole('button', { name: 'Modifier' })).not.toBeInTheDocument();
+        expect(screen.queryByLabelText('Cocher toute la page')).not.toBeInTheDocument();
+    });
+});
+
+describe('Dérogation au niveau d’étude', () => {
+    it('réclame un motif quand le niveau ne permet pas le profil, et l’envoie', async () => {
+        appels.lire.mockImplementation(lireQualification);
+        appels.agir.mockResolvedValue({ message: '1 fiches qualifiées.', donnees: { qualifiees: [], refusees: [] } });
+
+        monter(<Qualification />);
+
+        fireEvent.click(await screen.findByLabelText('Choisir Ali ZONGO'));
+        const formulaire = await screen.findByRole('form', { name: 'Attribuer un profil' });
+        fireEvent.change(within(formulaire).getByLabelText('Profil à attribuer'), { target: { value: 'superviseur' } });
+
+        expect(within(formulaire).getByText(/n’atteignent pas le niveau exigé/)).toBeInTheDocument();
+        expect(within(formulaire).getByText(/Licence \(BAC\+3\)/)).toBeInTheDocument();
+
+        fireEvent.change(within(formulaire).getByLabelText(/^Motif de la dérogation/), {
+            target: { value: 'Dix ans d’expérience en recensement.' },
+        });
+        fireEvent.click(within(formulaire).getByRole('button', { name: 'Attribuer ce profil' }));
+
+        await waitFor(() => expect(appels.agir).toHaveBeenCalledWith('/volontaires/a-qualifier', {
+            qualifications: [{
+                volontaire_id: 22,
+                categorie: 'superviseur',
+                motif_derogation: 'Dix ans d’expérience en recensement.',
+            }],
+        }));
+    });
+});
+
+describe('État des accès', () => {
+    it('télécharge le PDF avec les filtres de l’écran', async () => {
+        appels.lire.mockImplementation(lireRemises({ courriel_simule: true, sms_simule: true }));
+        appels.telecharger.mockResolvedValue({ fichier: new Blob(['%PDF']), nom: 'etat-acces.pdf' });
+
+        monter(<RemiseIdentifiants />);
+
+        fireEvent.change(await screen.findByLabelText('Recherche'), { target: { value: 'KABORE' } });
+        fireEvent.click(screen.getByRole('button', { name: 'État des accès (PDF)' }));
+
+        await waitFor(() => expect(appels.telecharger).toHaveBeenCalledWith('/comptes/remises/etat-acces?recherche=KABORE'));
     });
 });

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Enums\CategorieVolontaire;
+use App\Enums\NiveauEtude;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Volontaires\QualifierEnLotRequest;
 use App\Http\Responses\ReponseApi;
@@ -64,6 +65,16 @@ class QualificationVolontairesController extends Controller
                         'valeur' => $c->value,
                         'libelle' => $c->libelle(),
                         'localite_obligatoire' => $c === CategorieVolontaire::Assistant,
+                        // Le niveau exigé, pour que l'écran dise AVANT le clic
+                        // quelles fiches demanderont une dérogation.
+                        'niveau_minimum' => NiveauEtude::minimumPour($c)->value,
+                        'niveau_minimum_libelle' => NiveauEtude::minimumPour($c)->libelle(),
+                    ]),
+                'niveaux' => collect(NiveauEtude::cases())
+                    ->map(fn (NiveauEtude $n) => [
+                        'valeur' => $n->value,
+                        'libelle' => $n->libelle(),
+                        'rang' => $n->rang(),
                     ]),
             ]
         );
@@ -94,7 +105,8 @@ class QualificationVolontairesController extends Controller
                 DB::transaction(fn () => $volontaire->qualifier(
                     CategorieVolontaire::from($ligne['categorie']),
                     $auteur,
-                    $ligne['localite_id'] ?? null
+                    $ligne['localite_id'] ?? null,
+                    $ligne['motif_derogation'] ?? null
                 ));
 
                 $qualifiees[] = [

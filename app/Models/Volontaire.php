@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Enums\CategorieVolontaire;
 use App\Enums\MotifReserve;
+use App\Enums\NiveauEtude;
 use App\Enums\NiveauPerimetre;
 use App\Enums\StatutVolontaire;
 use App\Models\Concerns\AppliquePerimetre;
@@ -39,6 +40,8 @@ class Volontaire extends Model
         'categorie', 'statut', 'localite_id', 'region_origine_id',
         'sexe', 'date_naissance', 'lieu_naissance', 'motif_reserve',
         'date_entree_reserve', 'import_id', 'qualifie_par', 'qualifie_le', 'est_fictif',
+        'niveau_etude', 'diplome', 'derogation_niveau_motif', 'derogation_niveau_par',
+        'derogation_niveau_le', 'motif_retrait', 'retire_par', 'retire_le',
     ];
 
     /**
@@ -59,6 +62,9 @@ class Volontaire extends Model
             'date_etablissement_cnib' => 'date',
             'date_entree_reserve' => 'datetime',
             'qualifie_le' => 'datetime',
+            'niveau_etude' => NiveauEtude::class,
+            'derogation_niveau_le' => 'datetime',
+            'retire_le' => 'datetime',
             'est_fictif' => 'boolean',
         ];
     }
@@ -243,14 +249,20 @@ class Volontaire extends Model
      * Ne peut s'appliquer qu'une fois : le verrou de booted() refuse tout
      * changement ultérieur.
      */
-    public function qualifier(CategorieVolontaire $categorie, User $auteur, ?int $localiteId = null): void
-    {
+    public function qualifier(
+        CategorieVolontaire $categorie,
+        User $auteur,
+        ?int $localiteId = null,
+        ?string $motifDerogation = null
+    ): void {
         if (! $this->estAQualifier()) {
             throw new \DomainException(
                 "Cette fiche porte déjà la catégorie « {$this->categorie->value} » : "
                 .'les catégories sont étanches, elle ne peut pas être requalifiée.'
             );
         }
+
+        $derogation = $this->exigerNiveau($categorie, $motifDerogation);
 
         /*
          * L'A-OPK est rattaché EN PERMANENCE à sa localité (cadrage, section 4) :
@@ -281,6 +293,11 @@ class Volontaire extends Model
             'localite_id' => $categorie === CategorieVolontaire::Assistant ? $localiteRetenue : null,
             'qualifie_par' => $auteur->id,
             'qualifie_le' => now(),
+            ...($derogation ? [
+                'derogation_niveau_motif' => $derogation,
+                'derogation_niveau_par' => $auteur->id,
+                'derogation_niveau_le' => now(),
+            ] : []),
         ]);
 
         $this->user->assignRole($categorie->role()->value);
@@ -288,8 +305,111 @@ class Volontaire extends Model
         activity('volontaire')
             ->causedBy($auteur)
             ->performedOn($this)
-            ->withProperties(['categorie' => $categorie->value])
-            ->log("Profil attribué : {$categorie->libelle()}");
+            ->withProperties(array_filter([
+                'categorie' => $categorie->value,
+                'niveau_etude' => $this->niveau_etude?->value,
+                'derogation' => $derogation,
+            ]))
+            ->log($derogation
+                ? "Profil attribué PAR DÉROGATION : {$categorie->libelle()}"
+                : "Profil attribué : {$categorie->libelle()}");
+    }
+
+    /**
+     * LE NIVEAU D'ÉTUDE COMMANDE LE PROFIL (décision du client, 17/09/2026) :
+     * 4ème pour un A-OPK, BAC+1 pour un opérateur, Licence pour un superviseur.
+     *
+     * Le refus est la règle ; la DÉROGATION est possible, mais elle doit être
+     * MOTIVÉE et elle reste inscrite sur la fiche. Un niveau ABSENT n'est pas
+     * une dérogation tacite : il se renseigne d'abord.
+     *
+     * @return string|null Le motif de dérogation retenu, s'il en a fallu une.
+     */
+    public function exigerNiveau(CategorieVolontaire $categorie, ?string $motifDerogation = null): ?string
+    {
+        $minimum = NiveauEtude::minimumPour($categorie);
+        $motif = trim((string) $motifDerogation);
+
+        if ($this->niveau_etude === null) {
+            if ($motif === '') {
+                throw new \DomainException(
+                    "Le niveau d'étude de la fiche {$this->matricule} n'est pas renseigné : "
+                    ."un {$categorie->libelle()} exige au moins « {$minimum->libelle()} ». "
+                    .'Renseignez le niveau, ou accordez une dérogation motivée.'
+                );
+            }
+
+            return $motif;
+        }
+
+        if ($this->niveau_etude->atteint($minimum)) {
+            return null;
+        }
+
+        if ($motif === '') {
+            throw new \DomainException(
+                "Niveau insuffisant pour la fiche {$this->matricule} : "
+                ."« {$this->niveau_etude->libelle()} » alors qu'un {$categorie->libelle()} "
+                ."exige au moins « {$minimum->libelle()} ». Une dérogation motivée reste possible."
+            );
+        }
+
+        return $motif;
+    }
+
+    /**
+     * RETIRER une fiche du dispositif (décision du client, 17/09/2026) : elle
+     * sort des listes et des tirages, son accès se ferme — mais ses feuilles de
+     * présence et ses rapports restent, ce sont des pièces qui font foi. Le
+     * geste est réversible, et son motif reste sur la fiche.
+     */
+    public function retirer(string $motif, User $auteur): void
+    {
+        if ($this->statut === StatutVolontaire::Retire) {
+            throw new \DomainException("La fiche {$this->matricule} est déjà retirée.");
+        }
+
+        if ($this->affectations()->whereIn('statut', ['proposee', 'active'])->exists()) {
+            throw new \DomainException(
+                "La fiche {$this->matricule} est engagée dans une vague : "
+                .'remplacez l\'agent avant de le retirer.'
+            );
+        }
+
+        $this->update([
+            'statut' => StatutVolontaire::Retire->value,
+            'motif_retrait' => $motif,
+            'retire_par' => $auteur->id,
+            'retire_le' => now(),
+        ]);
+
+        activity('volontaire')
+            ->causedBy($auteur)
+            ->performedOn($this)
+            ->withProperties(['motif' => $motif])
+            ->log('Volontaire retiré du dispositif');
+    }
+
+    /** Le retrait se défait : la fiche revient en réserve, jamais directement sur le terrain. */
+    public function reintegrer(string $motif, User $auteur): void
+    {
+        if ($this->statut !== StatutVolontaire::Retire) {
+            throw new \DomainException("La fiche {$this->matricule} n'est pas retirée.");
+        }
+
+        $this->update([
+            'statut' => StatutVolontaire::Reserve->value,
+            'motif_reserve' => MotifReserve::NonMobilise->value,
+            'motif_retrait' => null,
+            'retire_par' => null,
+            'retire_le' => null,
+        ]);
+
+        activity('volontaire')
+            ->causedBy($auteur)
+            ->performedOn($this)
+            ->withProperties(['motif' => $motif])
+            ->log('Volontaire réintégré, en réserve');
     }
 
     /** Le prochain matricule libre pour une catégorie donnée. */
@@ -320,7 +440,7 @@ class Volontaire extends Model
     public function getActivitylogOptions(): LogOptions
     {
         return LogOptions::defaults()
-            ->logOnly(['statut', 'motif_reserve', 'localite_id', 'categorie'])
+            ->logOnly(['statut', 'motif_reserve', 'localite_id', 'categorie', 'niveau_etude', 'diplome'])
             ->logOnlyDirty()
             ->dontSubmitEmptyLogs()
             ->useLogName('volontaire');

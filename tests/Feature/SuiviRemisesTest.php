@@ -167,6 +167,31 @@ it('dit quand les courriels et les SMS ne partent pas pour de vrai', function ()
     expect($reel->json('data.canaux'))->toBe(['courriel_simule' => false, 'sms_simule' => false]);
 });
 
+it('imprime l\'état des accès, et ce document ne porte aucun mot de passe', function () {
+    Sanctum::actingAs($this->admin);
+
+    $reponse = $this->get('/api/v1/comptes/remises/etat-acces')
+        ->assertOk()
+        ->assertHeader('content-type', 'application/pdf');
+
+    $pdf = $reponse->streamedContent();
+    expect($pdf)->toStartWith('%PDF');
+
+    // Le PDF est produit depuis une vue qui n'a reçu aucun mot de passe : la
+    // seule remise qui en porte reste le bordereau nominatif.
+    expect(App\Models\RemiseIdentifiants::query()->count())->toBe(0);
+    // Aucun mot de passe n'a été régénéré au passage : imprimer un état n'est
+    // pas une remise d'identifiants.
+    expect($this->agentBankui->user->fresh()->password)->toBe($this->agentBankui->user->password);
+
+    // Le chef d'antenne imprime son périmètre, comme il le consulte.
+    Sanctum::actingAs($this->chef);
+    $this->get('/api/v1/comptes/remises/etat-acces')->assertOk();
+
+    Sanctum::actingAs($this->agentBankui->user);
+    $this->get('/api/v1/comptes/remises/etat-acces')->assertForbidden();
+});
+
 it('rend le nom du bordereau, et ce nom suffit à le télécharger', function () {
     Sanctum::actingAs($this->admin);
 

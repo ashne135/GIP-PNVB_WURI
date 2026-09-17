@@ -8,6 +8,8 @@ use App\Http\Responses\ReponseApi;
 use App\Models\User;
 use App\Services\Comptes\GenerateurBordereauFormation;
 use App\Services\Comptes\ServiceRemiseIdentifiants;
+use App\Support\NormalisateurTelephone;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -66,6 +68,78 @@ class RemiseIdentifiantsController extends Controller
             'repartition' => $this->repartitionParEtat($utilisateur),
             'canaux' => $this->canauxSimules(),
         ]);
+    }
+
+    /**
+     * L'ÉTAT DES ACCÈS EN PDF — un document de suivi, qui circule sans risque.
+     *
+     * IL NE PORTE AUCUN MOT DE PASSE (décision du client, 17/09/2026) : c'est
+     * le bordereau nominatif qui les remet, contre signature, et qu'on détruit
+     * après distribution. Ici on répond à « qui a son accès, et où en est-on ».
+     *
+     * Mêmes filtres et même périmètre que l'écran : on imprime ce qu'on voit.
+     */
+    public function etatAcces(Request $requete)
+    {
+        $this->autoriserSuivi($requete);
+
+        $utilisateur = $requete->user();
+
+        $comptes = $this->comptesDuPerimetre($utilisateur)
+            ->with(['volontaire:id,user_id,matricule,categorie,statut'])
+            ->when($requete->filled('etat_remise'),
+                fn ($q) => $q->where('etat_remise', $requete->string('etat_remise')))
+            ->when($requete->filled('statut_compte'),
+                fn ($q) => $q->where('statut_compte', $requete->string('statut_compte')))
+            ->when($requete->filled('categorie'),
+                fn ($q) => $q->whereHas('volontaire',
+                    fn ($r) => $r->where('categorie', $requete->string('categorie'))))
+            ->when($requete->boolean('sans_courriel'), fn ($q) => $q->whereNull('email'))
+            ->when($requete->filled('recherche'), function ($q) use ($requete) {
+                $recherche = trim((string) $requete->string('recherche'));
+
+                $q->where(fn ($r) => $r
+                    ->where('nom', 'like', "%{$recherche}%")
+                    ->orWhere('prenoms', 'like', "%{$recherche}%")
+                    ->orWhere('telephone', 'like', "%{$recherche}%")
+                    ->orWhereHas('volontaire', fn ($v) => $v->where('matricule', 'like', "%{$recherche}%")));
+            })
+            ->orderBy('nom')
+            // Un PDF se lit : au-delà, c'est un export tableur qu'il faut.
+            ->limit(2000)
+            ->get();
+
+        $lignes = $comptes->map(fn (User $compte) => [
+            'matricule' => $compte->volontaire?->matricule ?? '—',
+            'nom_complet' => $compte->nomComplet(),
+            'categorie' => $compte->volontaire?->categorie?->libelle() ?? 'À qualifier',
+            'telephone' => NormalisateurTelephone::pourAffichage($compte->telephone),
+            'email' => $compte->email ?? '—',
+            'acces' => $compte->statut_compte->libelle(),
+            'remise' => $compte->etat_remise->libelle(),
+            'premiere_connexion' => $compte->premiere_connexion_le?->format('d/m/Y') ?? '—',
+        ]);
+
+        $filtres = collect([
+            'remise' => $requete->string('etat_remise')->toString(),
+            'accès' => $requete->string('statut_compte')->toString(),
+            'catégorie' => $requete->string('categorie')->toString(),
+            'recherche' => $requete->string('recherche')->toString(),
+        ])->filter()->map(fn ($valeur, $cle) => "{$cle} = {$valeur}")->implode(', ');
+
+        $pdf = Pdf::loadView('documents.etat-acces', [
+            'lignes' => $lignes,
+            'repartition' => $this->repartitionParEtat($utilisateur),
+            'filtres' => $filtres,
+            'genere_le' => now(),
+            'genere_par' => $utilisateur->nomComplet(),
+        ])->setPaper('a4', 'landscape');
+
+        return response()->streamDownload(
+            fn () => print($pdf->output()),
+            'etat-acces-'.now()->format('Ymd-His').'.pdf',
+            ['Content-Type' => 'application/pdf']
+        );
     }
 
     /**

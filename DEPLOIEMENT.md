@@ -467,6 +467,14 @@ suggestion, chaque étape s'appuie sur la précédente.
 | 2 | Parc de kits | Au moins un kit **fonctionnel** par opérateur, sans détenteur | Un opérateur sans kit est signalé et reste sans passage |
 | 3 | Volontaires › Importer les retenus | Le fichier des retenus (modèle et canevas sur l'écran) | Crée les comptes, inactifs |
 | 4 | Volontaires › Profils à attribuer | Un profil pour chaque fiche importée sans « Profil » | Une fiche sans profil n'entre dans aucun tirage |
+
+> **Le niveau d'étude commande le profil** (décision du client, 17/09/2026) :
+> 4ème pour un A-OPK, BAC+1 pour un opérateur de kit, Licence pour un
+> superviseur de centre. Le fichier porte deux colonnes : **Niveau d'étude**
+> (valeur de l'échelle) et **Diplôme** (l'intitulé exact). Un profil que le
+> niveau ne permet pas n'est pas appliqué : la fiche entre « à qualifier », et
+> l'administration nationale tranche — en corrigeant le niveau sur la fiche, ou
+> par une **dérogation motivée**, inscrite sur la fiche et au journal.
 | 5 | Vagues › Planifier | Une vague sur la région des centres, puis tirage et validation | La validation **ouvre l'accès** des agents retenus |
 | 6 | Volontaires › Identifiants | Cocher les agents de l'essai, générer le bordereau PDF | Seul document qui porte le mot de passe en clair |
 | 7 | Téléphone | Se connecter avec le numéro et le mot de passe du bordereau | Le changement de mot de passe est demandé à la première connexion |
@@ -481,6 +489,44 @@ jamais tiré sur ces centres.
 > identifiants, mais dans le journal technique. L'écran Identifiants l'annonce
 > en tête. Le bordereau régénère le mot de passe : c'est celui du bordereau
 > qui vaut, jamais un plus ancien.
+
+### Faire partir les courriels pour de vrai
+
+Alwaysdata héberge les courriels du compte : il n'y a rien à acheter.
+
+1. Dans le panneau, **Courriels › Adresses › Ajouter une adresse** : par
+   exemple `pnvb@moncompte.alwaysdata.net`, avec un mot de passe.
+2. Compléter `~/www/pnvb/.env` :
+
+```dotenv
+MAIL_MAILER=smtp
+MAIL_HOST=smtp-moncompte.alwaysdata.net
+MAIL_PORT=587
+MAIL_SCHEME=smtp                      # STARTTLS ; utiliser « smtps » sur le port 465
+MAIL_USERNAME=pnvb@moncompte.alwaysdata.net
+MAIL_PASSWORD=le-mot-de-passe-de-cette-adresse
+MAIL_FROM_ADDRESS=pnvb@moncompte.alwaysdata.net
+MAIL_FROM_NAME="GIP-PNVB — Projet WURI"
+```
+
+3. Vérifier par un envoi réel, sans toucher à un compte de volontaire :
+
+```bash
+cd ~/www/pnvb
+php artisan tinker --execute="Mail::raw('Essai PNVB', fn (\$m) => \$m->to('votre.adresse@exemple.com')->subject('Essai PNVB'));"
+```
+
+Si le message arrive, l'écran **Volontaires › Identifiants** cesse d'afficher
+son bandeau orange, et un renvoi d'identifiants part réellement.
+
+> `MAIL_FROM_ADDRESS` doit être l'adresse créée : un expéditeur qui n'existe pas
+> chez l'hébergeur fait refuser le message par les serveurs destinataires, sans
+> qu'aucune erreur ne remonte à l'écran.
+>
+> **Les SMS, eux, ne partent toujours pas** : `PNVB_SMS_PILOTE=http` attend
+> l'URL et le jeton d'un opérateur, que le cadrage ne désigne pas encore. Un
+> volontaire sans adresse de courriel reçoit donc son mot de passe par le
+> bordereau.
 
 ---
 

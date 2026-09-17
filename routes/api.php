@@ -29,6 +29,7 @@ use App\Http\Controllers\Api\TableauBordController;
 use App\Http\Controllers\Api\TerritoireController;
 use App\Http\Controllers\Api\TourneesController;
 use App\Http\Controllers\Api\VaguesController;
+use App\Http\Controllers\Api\VolontairesController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -140,6 +141,24 @@ Route::prefix('v1')->name('api.')->group(function () {
             | téléverser analyse sans rien écrire, apercu montre le résultat,
             | confirmer applique. Rien n'est écrit avant la confirmation.
             */
+            /*
+            |--------------------------------------------------------------
+            | La fiche d'un volontaire : corriger, retirer, réintégrer
+            |--------------------------------------------------------------
+            | Ni la catégorie ni le matricule ne se modifient. Retirer n'efface
+            | rien : la fiche sort des listes, ses pièces restent.
+            */
+            Route::post('volontaires/retrait-en-lot', [VolontairesController::class, 'retirerEnLot'])
+                ->name('volontaires.retrait-en-lot');
+            Route::get('volontaires/{volontaire}', [VolontairesController::class, 'show'])
+                ->whereNumber('volontaire')->name('volontaires.voir');
+            Route::put('volontaires/{volontaire}', [VolontairesController::class, 'update'])
+                ->whereNumber('volontaire')->name('volontaires.modifier');
+            Route::post('volontaires/{volontaire}/retirer', [VolontairesController::class, 'retirer'])
+                ->whereNumber('volontaire')->name('volontaires.retirer');
+            Route::post('volontaires/{volontaire}/reintegrer', [VolontairesController::class, 'reintegrer'])
+                ->whereNumber('volontaire')->name('volontaires.reintegrer');
+
             Route::prefix('imports/volontaires')->name('imports.volontaires.')->group(function () {
                 Route::get('/', [ImportVolontairesController::class, 'index'])->name('index');
                 Route::get('modele', [ImportVolontairesController::class, 'modele'])->name('modele');
@@ -524,6 +543,9 @@ Route::prefix('v1')->name('api.')->group(function () {
             */
             Route::prefix('comptes/remises')->name('comptes.')->group(function () {
                 Route::get('/', [RemiseIdentifiantsController::class, 'index'])->name('remises');
+                // L'état des accès : un PDF de suivi, SANS mot de passe.
+                Route::get('etat-acces', [RemiseIdentifiantsController::class, 'etatAcces'])
+                    ->name('etat-acces');
                 Route::post('renvoyer', [RemiseIdentifiantsController::class, 'renvoyer'])->name('renvoyer');
                 Route::post('bordereau', [RemiseIdentifiantsController::class, 'bordereau'])->name('bordereau');
                 Route::get('bordereau/{fichier}', [RemiseIdentifiantsController::class, 'telechargerBordereau'])

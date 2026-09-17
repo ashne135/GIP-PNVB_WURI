@@ -89,6 +89,9 @@ function ligneRetenu(array $surcharges = []): array
         'cnib' => 'B1234567',
         'date_cnib' => '12/03/2018',
         'profil' => 'Superviseur de centre',
+        // Le niveau commande le profil : un superviseur exige la licence.
+        'niveau' => 'Licence',
+        'diplome' => 'Licence en sociologie',
         'region' => '', 'province' => '', 'commune' => '', 'arrondissement' => '',
         'secteur' => '', 'quartier' => '', 'village' => '', 'site' => '',
     ];
@@ -328,9 +331,9 @@ it('reconnaît des intitulés de colonnes différents du modèle', function () {
     $autre = $this->postJson('/api/v1/imports/volontaires', [
         'fichier' => fichierRetenus(
             [['1', 'x@exemple.bf', '76234567', 'KABORE', 'Issa', '', '', 'Masculin', 'B9999999', '',
-                'OPK', '', '', '', '', '', '', '', '']],
+                'OPK', 'BAC+2', 'BTS informatique', '', '', '', '', '', '', '', '']],
             ['No', 'Adresse email', 'Téléphone', 'NOM', 'Prenom(s)', 'Né le', 'Lieu naissance',
-                'Genre', 'CNIB', 'Date de délivrance', 'Fonction',
+                'Genre', 'CNIB', 'Date de délivrance', 'Fonction', 'Niveau', 'Dernier diplôme',
                 'Region', 'Province', 'commune', 'arrondissement', 'secteur', 'quartier', 'village', 'site']
         ),
         'type' => 'volontaires_retenus',
@@ -338,6 +341,64 @@ it('reconnaît des intitulés de colonnes différents du modèle', function () {
     ])->assertStatus(201);
 
     expect($autre->json('data.import.lignes_valides'))->toBe(1);
+});
+
+it('enregistre le niveau d\'étude et l\'intitulé du diplôme', function () {
+    televerser([ligneRetenu(['niveau' => 'bac + 2', 'diplome' => 'BTS en réseaux',
+        'profil' => 'Opérateur de kit'])])->assertStatus(201);
+
+    $import = Import::query()->latest()->first();
+    $this->postJson("/api/v1/imports/volontaires/{$import->id}/confirmer")->assertOk();
+
+    $volontaire = Volontaire::query()->firstOrFail();
+    expect($volontaire->niveau_etude)->toBe(App\Enums\NiveauEtude::BacPlus2);
+    expect($volontaire->diplome)->toBe('BTS en réseaux');
+    expect($volontaire->categorie)->toBe(CategorieVolontaire::Operateur);
+});
+
+it('écarte le profil que le niveau ne permet pas, SANS perdre la ligne', function () {
+    // Un superviseur exige la licence : avec le BAC, le profil n'est pas
+    // appliqué, mais le retenu entre bien au registre, « à qualifier ».
+    $reponse = televerser([
+        ligneRetenu(['profil' => 'Superviseur de centre', 'niveau' => 'BAC']),
+        // Un opérateur exige BAC+1 : sans niveau du tout, même traitement.
+        ligneRetenu(['n' => '2', 'profil' => 'Opérateur de kit', 'niveau' => '', 'diplome' => '',
+            'telephone' => '76234567', 'cnib' => 'B2345678', 'email' => 'opk@exemple.bf', 'nom' => 'KABORE']),
+        // Un A-OPK n'exige que la 4ème : la 3ème suffit, le profil tient.
+        ligneRetenu(['n' => '3', 'profil' => 'A-OPK', 'niveau' => '3ème',
+            'telephone' => '65345678', 'cnib' => 'B3456789', 'email' => 'aopk@exemple.bf',
+            'nom' => 'SAWADOGO', 'commune' => 'Bagassi', 'village' => 'Assio']),
+    ])->assertStatus(201);
+
+    expect($reponse->json('data.import.lignes_valides'))->toBe(3);
+    expect($reponse->json('data.import.lignes_erreur'))->toBe(0);
+    expect($reponse->json('data.import.resume.profils_ecartes'))->toBe(2);
+    expect($reponse->json('data.import.resume.a_qualifier'))->toBe(2);
+    expect($reponse->json('message'))->toContain('faute du niveau d\'étude exigé');
+
+    $import = Import::query()->latest()->first();
+    $this->postJson("/api/v1/imports/volontaires/{$import->id}/confirmer")->assertOk();
+
+    $superviseurEcarte = Volontaire::query()->whereHas('user', fn ($q) => $q->where('nom', 'OUEDRAOGO'))->sole();
+    $assistant = Volontaire::query()->whereHas('user', fn ($q) => $q->where('nom', 'SAWADOGO'))->sole();
+
+    expect($superviseurEcarte->categorie)->toBeNull();
+    expect($superviseurEcarte->niveau_etude)->toBe(App\Enums\NiveauEtude::Bac);
+    expect($assistant->categorie)->toBe(CategorieVolontaire::Assistant);
+
+    // Le compte rendu dit pourquoi le profil n'a pas été appliqué.
+    $contenu = $this->get("/api/v1/imports/volontaires/{$import->id}/compte-rendu")->assertOk()->streamedContent();
+    expect($contenu)->toContain('non appliqué : niveau « BAC »');
+    expect($contenu)->toContain('Licence (BAC+3)');
+});
+
+it('refuse un niveau d\'étude qui n\'est pas dans l\'échelle', function () {
+    televerser([ligneRetenu(['niveau' => 'Licence ou équivalent peut-être'])])->assertStatus(201);
+
+    $import = Import::query()->latest()->first();
+    expect($import->lignes_erreur)->toBe(1);
+    expect($import->lignes()->where('valide', false)->value('motif_erreur'))
+        ->toContain("niveau d'étude")->toContain("n'est pas reconnu");
 });
 
 it('refuse un fichier dont les colonnes obligatoires sont absentes', function () {

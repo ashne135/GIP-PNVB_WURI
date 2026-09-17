@@ -53,8 +53,12 @@ beforeEach(function () {
 });
 
 /** Une fiche importée sans profil : catégorie nulle, matricule provisoire. */
-function ficheAQualifier(string $telephone, string $nom, ?string $email = null): Volontaire
-{
+function ficheAQualifier(
+    string $telephone,
+    string $nom,
+    ?string $email = null,
+    ?string $niveau = 'licence'
+): Volontaire {
     $user = User::query()->create([
         'telephone' => $telephone, 'nom' => $nom, 'prenoms' => 'Test',
         'email' => $email,
@@ -66,6 +70,9 @@ function ficheAQualifier(string $telephone, string $nom, ?string $email = null):
         'matricule' => 'PNVB-AQU'.substr($telephone, -6),
         'categorie' => null,
         'statut' => 'operationnel',
+        // Le niveau d'étude commande le profil : les fiches de ces suites le
+        // portent, sauf quand c'est justement lui qu'on éprouve.
+        'niveau_etude' => $niveau,
     ]);
 }
 

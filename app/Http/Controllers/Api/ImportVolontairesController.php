@@ -154,7 +154,7 @@ class ImportVolontairesController extends Controller
             fwrite($sortie, "\xEF\xBB\xBF");
 
             fputcsv($sortie, ['Ligne', 'Statut', 'Motif', 'Nom', 'Prénoms', 'Téléphone',
-                'Email', 'Catégorie', 'Localité'], ';');
+                'Email', 'Catégorie', 'Niveau d\'étude', 'Diplôme', 'Localité'], ';');
 
             $import->lignes()->orderBy('numero_ligne')->chunk(500, function ($lignes) use ($sortie) {
                 foreach ($lignes as $ligne) {
@@ -163,12 +163,18 @@ class ImportVolontairesController extends Controller
                     fputcsv($sortie, [
                         $ligne->numero_ligne,
                         $ligne->valide ? 'Importée' : 'En erreur',
-                        $ligne->motif_erreur ?? '',
+                        // Une ligne valide peut porter un avertissement : son
+                        // profil n'a pas été appliqué faute du niveau exigé.
+                        $ligne->motif_erreur ?? ($d['profil_ecarte'] ?? ''),
                         $d['nom'] ?? '',
                         $d['prenoms'] ?? '',
                         $d['telephone'] ?? '',
                         $d['email'] ?? '',
                         $d['categorie'] ?? '',
+                        $d['niveau_etude']
+                            ? \App\Enums\NiveauEtude::from($d['niveau_etude'])->libelle()
+                            : '',
+                        $d['diplome'] ?? '',
                         $this->localiteDeLaLigne($d),
                     ], ';');
                 }
@@ -224,6 +230,13 @@ class ImportVolontairesController extends Controller
 
         if ($import->lignes_erreur > 0) {
             $message .= ", {$import->lignes_erreur} lignes en erreur";
+        }
+
+        $ecartes = $import->resume['profils_ecartes'] ?? 0;
+
+        if ($ecartes > 0) {
+            $message .= ". {$ecartes} profils n'ont pas été appliqués faute du niveau d'étude exigé : "
+                .'ces fiches arriveront « à qualifier »';
         }
 
         $sansCourriel = $import->resume['sans_courriel'] ?? 0;

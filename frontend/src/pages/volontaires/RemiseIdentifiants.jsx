@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { api } from '../../api/client';
+import { api, avecParametres } from '../../api/client';
 import { useAuth } from '../../auth/ContexteAuth';
 import { useAction, useListe, useTelechargement } from '../../outils/crochets';
 import { Bloc } from '../../composants/Fiche';
@@ -127,6 +127,23 @@ export function RemiseIdentifiants() {
                         ton={valeur === 'echec' && repartition[valeur]?.nombre > 0 ? 'alerte' : 'neutre'}
                     />
                 ))}
+            </div>
+
+            <div className="flex flex-wrap items-center justify-between gap-3">
+                <p className="max-w-prose text-sm text-ardoise-600">
+                    L’état des accès s’imprime sans aucun mot de passe : c’est un document de suivi. Les mots de passe
+                    se remettent par le bordereau nominatif, contre signature.
+                </p>
+                <Bouton
+                    variante="secondaire"
+                    disabled={telechargement.enCours}
+                    onClick={() => telechargement.telecharger(
+                        avecParametres('/comptes/remises/etat-acces', liste.filtres),
+                        'etat-acces.pdf',
+                    )}
+                >
+                    {telechargement.enCours ? 'Préparation…' : 'État des accès (PDF)'}
+                </Bouton>
             </div>
 
             <BarreFiltres onReinitialiser={liste.reinitialiser}>

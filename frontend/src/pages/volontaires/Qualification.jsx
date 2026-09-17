@@ -3,12 +3,13 @@ import { useQuery } from '@tanstack/react-query';
 import { api, avecParametres } from '../../api/client';
 import { useAction } from '../../outils/crochets';
 import { Bloc } from '../../composants/Fiche';
-import { Pagination, Tableau } from '../../composants/Tableau';
+import { Pagination, Pastille, Tableau } from '../../composants/Tableau';
 import { BarreFiltres, FiltreTexte } from '../../composants/Filtres';
-import { Bouton, Champ, Liste } from '../../composants/Champs';
+import { Bouton, Champ, Liste, Saisie } from '../../composants/Champs';
 import { Chargement } from '../../composants/Chargement';
 import { Echec, Succes, Vide } from '../../composants/Etats';
 import { nombre, nomDe } from '../../outils/format';
+import { libelleNiveau, minimumsProfil, niveauSuffit } from '../../domaine/volontaires';
 
 /**
  * ATTRIBUER LES PROFILS — aux fiches importées sans colonne « Profil »
@@ -33,6 +34,7 @@ export function Qualification() {
     const [regionId, setRegionId] = useState('');
     const [communeId, setCommuneId] = useState('');
     const [localiteId, setLocaliteId] = useState('');
+    const [motifDerogation, setMotifDerogation] = useState('');
     const [bilan, setBilan] = useState(null);
 
     const action = useAction(['volontaires-a-qualifier', 'volontaires']);
@@ -97,6 +99,10 @@ export function Qualification() {
             volontaire_id: id,
             categorie,
             ...(pourAssistant && localiteId ? { localite_id: Number(localiteId) } : {}),
+            // Le serveur ne retient la dérogation que pour les fiches qui en ont
+            // besoin : l'envoyer pour tout le lot ne « déroge » pour personne
+            // d'autre.
+            ...(motifDerogation.trim() !== '' ? { motif_derogation: motifDerogation.trim() } : {}),
         }));
 
         const resultat = await action.lancer(() => api.agir('/volontaires/a-qualifier', { qualifications }));
@@ -112,6 +118,13 @@ export function Qualification() {
     const sansLocalite = pourAssistant && !localiteId
         ? [...choisies.values()].filter((f) => !f.localite_id).length
         : 0;
+
+    // Les fiches dont le niveau d'étude ne permet pas le profil choisi : sans
+    // dérogation motivée, le serveur les refusera.
+    const aDeroger = categorie
+        ? [...choisies.values()].filter((f) => !niveauSuffit(f.niveau_etude, categorie))
+        : [];
+    const minimum = categorie ? libelleNiveau(minimumsProfil[categorie]) : null;
 
     return (
         <>
@@ -192,6 +205,32 @@ export function Qualification() {
                             </p>
                         )}
 
+                        {aDeroger.length > 0 && (
+                            <div className="space-y-2 rounded border border-ocre-300 bg-ocre-50 px-3 py-3">
+                                <p className="text-sm text-ocre-900">
+                                    <span className="font-medium">{nombre(aDeroger.length)} fiches n’atteignent pas le niveau exigé</span>
+                                    {minimum && <> — ce profil demande au moins « {minimum} ».</>}
+                                    {' '}Sans dérogation motivée, le serveur les refusera :{' '}
+                                    {aDeroger.slice(0, 3).map((f) => nomDe(f.user)).join(', ')}
+                                    {aDeroger.length > 3 && `, et ${nombre(aDeroger.length - 3)} autres`}.
+                                </p>
+                                <Champ
+                                    nom="motif_derogation"
+                                    libelle="Motif de la dérogation"
+                                    aide="Il restera inscrit sur chaque fiche concernée, et au journal."
+                                    erreurs={action.erreur?.erreurs}
+                                >
+                                    <Saisie
+                                        id="motif-derogation"
+                                        value={motifDerogation}
+                                        onChange={(e) => setMotifDerogation(e.target.value)}
+                                        maxLength={500}
+                                        placeholder="Expérience, décision de la coordination…"
+                                    />
+                                </Champ>
+                            </div>
+                        )}
+
                         <div className="flex flex-wrap gap-2">
                             <Bouton type="submit" disabled={!categorie || action.enCours}>
                                 {action.enCours ? 'Attribution…' : 'Attribuer ce profil'}
@@ -237,6 +276,13 @@ export function Qualification() {
                             { cle: 'matricule', titre: 'Matricule provisoire', compact: true, rendu: (f) => <span className="font-mono">{f.matricule}</span> },
                             { cle: 'nom', titre: 'Nom et prénoms', rendu: (f) => nomDe(f.user) },
                             { cle: 'telephone', titre: 'Téléphone', compact: true, rendu: (f) => f.user?.telephone ?? '—' },
+                            {
+                                cle: 'niveau',
+                                titre: 'Niveau d’étude',
+                                rendu: (f) => libelleNiveau(f.niveau_etude)
+                                    ?? <Pastille ton="attention">à renseigner</Pastille>,
+                            },
+                            { cle: 'diplome', titre: 'Diplôme', rendu: (f) => f.diplome ?? '—' },
                             {
                                 cle: 'localite',
                                 titre: 'Localité du fichier',

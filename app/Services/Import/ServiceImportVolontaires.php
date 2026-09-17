@@ -89,6 +89,7 @@ class ServiceImportVolontaires
         $motifs = [];
         $sansCourriel = 0;
         $aQualifier = 0;
+        $profilsEcartes = 0;
 
         foreach ($lu['lignes'] as $ligne) {
             $resultat = $validateur->valider($ligne['donnees'], $ligne['numero']);
@@ -104,6 +105,12 @@ class ServiceImportVolontaires
                 // être qualifiée avant toute affectation (cadrage v2, section 6).
                 if ($resultat['a_qualifier']) {
                     $aQualifier++;
+                }
+
+                // Le profil du fichier n'a pas été appliqué : le niveau d'étude
+                // ne le permet pas (décision du client, 17/09/2026).
+                if (($resultat['donnees']['profil_ecarte'] ?? null) !== null) {
+                    $profilsEcartes++;
                 }
             } else {
                 $enErreur++;
@@ -134,6 +141,7 @@ class ServiceImportVolontaires
                 'colonnes_reconnues' => array_values($lu['entetes']),
                 'sans_courriel' => $sansCourriel,
                 'a_qualifier' => $aQualifier,
+                'profils_ecartes' => $profilsEcartes,
                 'motifs_frequents' => $this->motifsFrequents($motifs),
                 'purge_prevue' => $mode === 'remplacer' ? Volontaire::query()->fictifs()->count() : 0,
                 'obstacles_purge' => $mode === 'remplacer' ? $this->purgeur->obstacles() : [],
@@ -220,6 +228,8 @@ class ServiceImportVolontaires
                                 'sexe' => $donnees['sexe'] ?? null,
                                 'date_naissance' => $donnees['date_naissance'] ?? null,
                                 'lieu_naissance' => $donnees['lieu_naissance'] ?? null,
+                                'niveau_etude' => $donnees['niveau_etude'] ?? null,
+                                'diplome' => $donnees['diplome'] ?? null,
                                 'motif_reserve' => $statutVolontaire === StatutVolontaire::Reserve
                                     ? 'non_mobilise'
                                     : null,

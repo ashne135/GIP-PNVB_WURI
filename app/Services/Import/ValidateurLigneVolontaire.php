@@ -2,6 +2,8 @@
 
 namespace App\Services\Import;
 
+use App\Enums\CategorieVolontaire;
+use App\Enums\NiveauEtude;
 use App\Models\Localite;
 use App\Models\Region;
 use App\Models\User;
@@ -116,6 +118,52 @@ class ValidateurLigneVolontaire
         if ($profilFourni && $profil === null) {
             $erreurs[] = "le profil « {$donnees['profil']} » n'est pas reconnu "
                 .'(valeurs attendues : superviseur de centre, opérateur de kit, A-OPK)';
+        }
+
+        // ---------- Niveau d'étude et diplôme ----------
+        $niveau = NiveauEtude::reconnaitre(
+            $donnees['niveau_etude'] ?? null,
+            fn ($valeur) => CanevasVolontaires::normaliser($valeur)
+        );
+
+        if (trim((string) ($donnees['niveau_etude'] ?? '')) !== '' && $niveau === null) {
+            $erreurs[] = "le niveau d'étude « {$donnees['niveau_etude']} » n'est pas reconnu "
+                .'(valeurs attendues : aucun, CEP, 4ème, 3ème ou BEPC, BAC, BAC+1, BAC+2, '
+                .'Licence, Master)';
+        }
+
+        $donnees['niveau_etude'] = $niveau?->value;
+
+        $diplome = trim(preg_replace('/\s+/', ' ', (string) ($donnees['diplome'] ?? '')) ?? '');
+        $donnees['diplome'] = $diplome !== '' ? mb_substr($diplome, 0, 150) : null;
+
+        /*
+         * LE NIVEAU COMMANDE LE PROFIL (décision du client, 17/09/2026).
+         *
+         * Un profil que le niveau ne permet pas n'est pas appliqué — mais la
+         * ligne n'est PAS REJETÉE pour autant : la perdre ferait disparaître un
+         * retenu du registre pour une question de dossier. Elle entre « à
+         * qualifier », le motif est écrit noir sur blanc, et l'administration
+         * national tranchera — en corrigeant le niveau, ou par une dérogation
+         * motivée.
+         */
+        $donnees['profil_ecarte'] = null;
+
+        if ($profil !== null) {
+            $categorie = CategorieVolontaire::from($profil);
+            $minimum = NiveauEtude::minimumPour($categorie);
+
+            if ($niveau === null || ! $niveau->atteint($minimum)) {
+                $donnees['profil_ecarte'] = sprintf(
+                    'Profil « %s » non appliqué : %s, alors que ce profil exige au moins « %s ». '
+                    .'Fiche à qualifier.',
+                    $categorie->libelle(),
+                    $niveau === null ? "niveau d'étude non renseigné" : "niveau « {$niveau->libelle()} »",
+                    $minimum->libelle()
+                );
+
+                $profil = null;
+            }
         }
 
         $donnees['categorie'] = $profil;

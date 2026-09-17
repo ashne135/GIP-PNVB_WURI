@@ -350,6 +350,8 @@ it('une fiche sans profil peut être qualifiée une fois, puis jamais rechangée
         'statut' => 'operationnel',
     ]);
 
+    $volontaire->update(['niveau_etude' => 'troisieme_bepc']);
+
     expect($volontaire->estAQualifier())->toBeTrue();
     expect(Volontaire::query()->aQualifier()->count())->toBe(1);
 

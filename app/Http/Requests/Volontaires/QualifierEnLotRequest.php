@@ -28,6 +28,9 @@ class QualifierEnLotRequest extends FormRequest
             // dépend de la catégorie de CHAQUE ligne, elle est donc vérifiée par
             // le modèle plutôt que par une règle de validation globale.
             'qualifications.*.localite_id' => ['nullable', 'integer', 'exists:localites,id'],
+            // La DÉROGATION au niveau d'étude exigé : facultative, mais elle
+            // doit dire pourquoi. Elle reste inscrite sur la fiche.
+            'qualifications.*.motif_derogation' => ['nullable', 'string', 'min:10', 'max:500'],
         ];
     }
 
@@ -40,6 +43,7 @@ class QualifierEnLotRequest extends FormRequest
             'qualifications.*.categorie.required' => 'Choisissez un profil pour chaque fiche.',
             'qualifications.*.categorie.in' => 'Le profil doit être superviseur, operateur ou assistant.',
             'qualifications.*.localite_id.exists' => 'La localité choisie est introuvable.',
+            'qualifications.*.motif_derogation.min' => 'Une dérogation au niveau d\'étude exigé doit être expliquée.',
         ];
     }
 }

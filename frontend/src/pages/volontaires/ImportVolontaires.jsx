@@ -13,6 +13,7 @@ import { dateHeure, nombre, nomDe } from '../../outils/format';
 import {
     colonnesCanevas,
     libelleCategorie,
+    libelleNiveau,
     libellesColonnesServeur,
     localiteDuFichier,
     statutsImport,
@@ -195,6 +196,7 @@ export function ImportVolontaires() {
                                         <td className="whitespace-nowrap py-1.5 pr-4">
                                             {colonne.exigence === 'obligatoire' && <Pastille ton="alerte">oui</Pastille>}
                                             {colonne.exigence === 'A-OPK' && <Pastille ton="attention">pour un A-OPK</Pastille>}
+                                            {colonne.exigence === 'pour le profil' && <Pastille ton="attention">pour le profil</Pastille>}
                                             {colonne.exigence === 'facultative' && <span className="text-ardoise-500">non</span>}
                                         </td>
                                         <td className="py-1.5 text-ardoise-700">{colonne.valeurs}</td>
@@ -285,7 +287,9 @@ function ResultatImport({
                     libelle="Sans profil"
                     valeur={nombre(resume.a_qualifier ?? 0)}
                     ton={resume.a_qualifier > 0 ? 'attention' : 'neutre'}
-                    precision="à qualifier avant toute vague"
+                    precision={resume.profils_ecartes > 0
+                        ? `dont ${nombre(resume.profils_ecartes)} écartés faute du niveau exigé`
+                        : 'à qualifier avant toute vague'}
                 />
             </div>
 
@@ -349,7 +353,16 @@ function ResultatImport({
                                 compact: true,
                                 rendu: (l) => (l.valide ? <Pastille ton="bon">valide</Pastille> : <Pastille ton="alerte">en erreur</Pastille>),
                             },
-                            { cle: 'motif', titre: 'Motif', rendu: (l) => l.motif_erreur ?? '—' },
+                            {
+                                cle: 'motif',
+                                titre: 'Motif',
+                                // Une ligne valide peut porter un avertissement : son profil
+                                // n'a pas été appliqué faute du niveau d'étude exigé.
+                                rendu: (l) => l.motif_erreur
+                                    ?? (l.donnees?.profil_ecarte
+                                        ? <span className="text-ocre-800">{l.donnees.profil_ecarte}</span>
+                                        : '—'),
+                            },
                             { cle: 'nom', titre: 'Nom et prénoms', rendu: (l) => nomDe(l.donnees) },
                             { cle: 'telephone', titre: 'Téléphone', compact: true, rendu: (l) => l.donnees?.telephone || '—' },
                             { cle: 'email', titre: 'Courriel', rendu: (l) => l.donnees?.email || '—' },
@@ -359,6 +372,12 @@ function ResultatImport({
                                 compact: true,
                                 rendu: (l) => libelleCategorie(l.donnees?.categorie)
                                     ?? (l.valide ? <Pastille ton="attention">à qualifier</Pastille> : '—'),
+                            },
+                            {
+                                cle: 'niveau',
+                                titre: 'Niveau',
+                                compact: true,
+                                rendu: (l) => libelleNiveau(l.donnees?.niveau_etude) ?? '—',
                             },
                             { cle: 'localite', titre: 'Localité', rendu: (l) => localiteDuFichier(l.donnees) ?? '—' },
                         ]}
