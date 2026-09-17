@@ -108,7 +108,9 @@ Puis éditer `.env`. **Les lignes à changer impérativement :**
 ```dotenv
 APP_ENV=production
 APP_DEBUG=false
-APP_URL=https://pnvb.moncompte.alwaysdata.net
+# Le CHEMIN fait partie de l'adresse : sans lui, tous les liens generes
+# (courriels, PDF, redirections) pointeraient a la racine du domaine.
+APP_URL=https://moncompte.alwaysdata.net/pnvbwuri
 
 # alwaysdata sert du MariaDB : ce pilote n'est PAS « mysql ».
 DB_CONNECTION=mariadb
@@ -168,10 +170,23 @@ Il se construit **sur votre machine**, pas sur le serveur : alwaysdata n'a pas
 besoin de Node, et la compilation consommerait de l'espace pour rien.
 
 ```bash
-# En local
+# En local, si le site est servi à la RACINE d'un domaine
 cd frontend
 npm run build
+
+# Si le site est servi sous un CHEMIN (le cas sur alwaysdata)
+VITE_BASE=/pnvbwuri/ npm run build
 ```
+
+> **Le chemin de base n'est pas optionnel.** Vite inscrit les liens vers ses
+> fichiers *à la compilation*. Compilé pour la racine puis servi sous
+> `/pnvbwuri`, le back-office cherche ses scripts à la racine du domaine et
+> n'affiche **qu'une page blanche, sans aucune erreur** — la panne la plus
+> longue à diagnostiquer, parce qu'elle ne dit rien.
+>
+> Pour vérifier avant d'envoyer : `dist/index.html` doit contenir
+> `src="/pnvbwuri/assets/…"`. S'il contient `src="/assets/…"`, la compilation
+> est à refaire. La barre oblique finale de `VITE_BASE` est obligatoire.
 
 Puis envoyer le contenu de `frontend/dist/` dans le dossier `public/` du
 serveur (SFTP ou `scp`) :
@@ -192,10 +207,24 @@ Le fichier `index.html` se retrouve ainsi à la racine servie, et la route
 
 | Champ | Valeur |
 |---|---|
-| Adresse | `pnvb.moncompte.alwaysdata.net` (ou votre domaine) |
+| Adresse | `moncompte.alwaysdata.net/pnvbwuri` |
 | Type | PHP |
 | Répertoire racine | `/www/pnvb/public` |
-| Version de PHP | 8.2 ou 8.3 |
+| Version de PHP | **8.2 ou 8.3, choisie explicitement** |
+
+> **On ne peut pas créer de sous-domaine sous `alwaysdata.net`.** Le compte
+> reçoit `moncompte.alwaysdata.net` et rien en dessous : la zone appartient à
+> alwaysdata. Tenter `pnvb.moncompte.alwaysdata.net` renvoie
+> *« Le domaine alwaysdata.net ne vous appartient pas »*, et le nom ne résout
+> jamais. Il faut donc **un chemin** — `moncompte.alwaysdata.net/pnvbwuri` —
+> sauf à posséder son propre domaine.
+>
+> Un chemin plus précis l'emporte sur la racine : une autre application déjà
+> installée à `moncompte.alwaysdata.net` continue de fonctionner normalement.
+>
+> **Ne laissez pas « Version par défaut » pour PHP.** `composer.json` exige
+> `^8.2` ; si le défaut du compte est antérieur, `composer install` échoue sans
+> que la cause saute aux yeux.
 
 Le répertoire racine pointe sur **`public/`**, jamais sur la racine du projet :
 sinon `.env`, `vendor/` et le code source deviendraient téléchargeables.
@@ -230,11 +259,13 @@ depuis un émulateur — et ne trouvera jamais le serveur.
 ```bash
 cd mobile
 flutter build apk --debug \
-  --dart-define=URL_API=https://pnvb.moncompte.alwaysdata.net/api/v1
+  --dart-define=URL_API=https://moncompte.alwaysdata.net/pnvbwuri/api/v1
 ```
 
-Le suffixe `/api/v1` fait partie de l'adresse : l'omettre donnerait des 404 sur
-chaque appel.
+L'adresse se compose de **trois morceaux**, et chacun est nécessaire : le
+domaine, le **chemin du site** (`/pnvbwuri`), puis `/api/v1`. En omettre un
+seul donne des 404 sur chaque appel — et l'application annoncera « serveur
+injoignable », sans pouvoir dire pourquoi.
 
 L'APK se trouve ensuite dans `mobile/build/app/outputs/flutter-apk/`.
 
@@ -251,7 +282,7 @@ d'entrée de gamme devient gênant.
 
 ```bash
 flutter build apk --debug --target-platform android-arm \
-  --dart-define=URL_API=https://pnvb.moncompte.alwaysdata.net/api/v1
+  --dart-define=URL_API=https://moncompte.alwaysdata.net/pnvbwuri/api/v1
 ```
 
 `android-arm` vise `armeabi-v7a`, l'architecture des appareils 32 bits. À
@@ -268,10 +299,10 @@ prouve tout autant que la chaîne fonctionne.
 
 ```bash
 # Une route protegee, sans jeton : doit repondre 401, en JSON.
-curl -i https://pnvb.moncompte.alwaysdata.net/api/v1/alertes
+curl -i https://moncompte.alwaysdata.net/pnvbwuri/api/v1/alertes
 
 # Une route d'API inexistante : doit repondre 404, en JSON egalement.
-curl -i https://pnvb.moncompte.alwaysdata.net/api/v1/inexistant
+curl -i https://moncompte.alwaysdata.net/pnvbwuri/api/v1/inexistant
 ```
 
 Le second appel est le plus instructif : s'il renvoie du **HTML avec un statut
