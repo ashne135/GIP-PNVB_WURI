@@ -1,0 +1,37 @@
+{
+    "version": "2026.1",
+    "provisoire": true,
+    "titre": "Charte du volontaire",
+    "preambule": "Cette charte décrit ce que la plateforme enregistre sur votre activité pendant votre mission, pourquoi elle le fait, et ce que vous pouvez exiger. Lisez-la avant de l’accepter : votre acceptation est enregistrée avec sa date.",
+    "articles": [
+        {
+            "titre": "Ce qui est enregistré",
+            "texte": "Pendant vos jours d’affectation active et pendant les heures de service uniquement, l’application enregistre votre position géographique à intervalle régulier. En dehors de ces périodes — le soir, le week-end, hors mission — aucune position n’est relevée, et l’application n’a aucun moyen de le faire."
+        },
+        {
+            "titre": "À quoi cela sert",
+            "texte": "Ces relevés servent à UNE SEULE CHOSE : vérifier la cohérence entre la feuille de présence validée par votre superviseur et votre présence effective sur le site. Ils ne servent ni à évaluer votre rendement, ni à mesurer votre temps de trajet, ni à quoi que ce soit d’autre."
+        },
+        {
+            "titre": "Ce que personne ne peut voir",
+            "texte": "AUCUN écran de la plateforme n’affiche l’historique de vos déplacements. Ni votre superviseur, ni le chef d’antenne, ni l’administration nationale ne peuvent consulter où vous êtes allé. Seul un ÉCART constaté entre la feuille de présence et les relevés est signalé, et uniquement au chef d’antenne régional, qui en discute avec vous."
+        },
+        {
+            "titre": "Combien de temps",
+            "texte": "Les relevés de position sont effacés automatiquement après le délai de conservation fixé par le projet. Cet effacement est programmé à l’écriture de chaque relevé : il ne dépend pas d’une décision ultérieure."
+        },
+        {
+            "titre": "Le signal d’arrivée n’est pas un pointage",
+            "texte": "Quand vous appuyez sur « je suis arrivé », vous signalez votre arrivée à votre superviseur. Ce signal ne vaut pas présence : seule la feuille de présence validée par votre superviseur fait foi, et c’est elle qui est opposable."
+        },
+        {
+            "titre": "Vos droits",
+            "texte": "Vous pouvez consulter à tout moment les appréciations qui vous concernent et y répondre par une observation écrite, horodatée, que votre supérieur ne peut ni modifier ni supprimer. Vous pouvez demander à votre chef d’antenne quelles données vous concernant sont détenues par la plateforme."
+        },
+        {
+            "titre": "Ce que la plateforme n’enregistre pas",
+            "texte": "La plateforme ne conserve AUCUNE donnée d’identité des personnes que vous enregistrez. Elle ne compte que des volumes. Les données des personnes enregistrées appartiennent au système national d’identification, et n’entrent jamais dans cette plateforme."
+        }
+    ],
+    "engagement": "J’ai lu cette charte et j’accepte que ma position soit relevée dans les conditions qu’elle décrit, pendant mes heures de service et mes jours d’affectation."
+}

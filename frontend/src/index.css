@@ -1,0 +1,29 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+    html {
+        -webkit-text-size-adjust: 100%;
+    }
+
+    body {
+        @apply bg-ardoise-50 text-ardoise-900 antialiased;
+    }
+
+    /* Le focus doit rester visible : le back-office se navigue au clavier
+       autant qu'à la souris, et sur des postes sans souris fiable. */
+    :focus-visible {
+        @apply outline-none ring-2 ring-pnvb-400 ring-offset-1;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+}

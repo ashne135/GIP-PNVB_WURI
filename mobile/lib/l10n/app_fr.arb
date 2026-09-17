@@ -1,0 +1,422 @@
+{
+  "@@locale": "fr",
+
+  "titreApplication": "PNVB Volontaires",
+
+  "demarrageImpossibleTitre": "L’application n’a pas pu démarrer",
+  "demarrageImpossibleTexte": "Ses données sur ce téléphone n’ont pas pu être ouvertes. Réessayez ; si le problème continue, prévenez votre superviseur.",
+
+  "reseauEnLigne": "Réseau disponible",
+  "reseauHorsLigne": "Hors ligne — votre travail reste enregistré sur le téléphone",
+
+  "connexionTitre": "Connexion",
+  "connexionReseauRequis": "La première connexion demande du réseau. Ensuite, l’application fonctionne sans.",
+  "connexionTelephone": "Numéro de téléphone",
+  "connexionTelephoneAide": "Exemple : 70 12 34 56",
+  "connexionMotDePasse": "Mot de passe",
+  "connexionBouton": "Se connecter",
+  "enCours": "Patientez…",
+
+  "motDePasseTitre": "Votre mot de passe",
+  "motDePasseExplication": "Le mot de passe qui vous a été remis est provisoire. Choisissez-en un que vous êtes seul à connaître.",
+  "motDePasseActuel": "Mot de passe actuel",
+  "motDePasseNouveau": "Nouveau mot de passe",
+  "motDePasseRegle": "Au moins 8 caractères, dont au moins une lettre et un chiffre.",
+  "motDePasseConfirmation": "Confirmez le nouveau mot de passe",
+  "motDePasseBouton": "Enregistrer et continuer",
+  "obligationReseau": "Cette étape demande du réseau.",
+
+  "charteTitre": "Charte du volontaire",
+  "charteChargement": "Chargement de la charte…",
+  "charteProvisoireTitre": "Texte provisoire — sans valeur juridique",
+  "charteProvisoireTexte": "Ce texte n’a pas été rédigé par un juriste. Il doit être remplacé par la charte officielle du GIP-PNVB avant toute mise en service sur le terrain.",
+  "charteAccepter": "J’accepte la charte",
+  "charteRefuser": "Refuser et quitter",
+  "charteVersion": "Version {version}. Votre acceptation est enregistrée avec sa date et la version du texte.",
+  "@charteVersion": {
+    "placeholders": { "version": { "type": "String" } }
+  },
+  "reessayer": "Réessayer",
+
+  "accueilBonjour": "Bonjour {nom}",
+  "@accueilBonjour": {
+    "placeholders": { "nom": { "type": "String" } }
+  },
+  "accueilMission": "Ma mission",
+  "accueilAucuneMission": "Aucune mission en cours.",
+  "accueilSiteDuJour": "Site du jour : {site}",
+  "@accueilSiteDuJour": {
+    "placeholders": { "site": { "type": "String" } }
+  },
+  "accueilKitAbsent": "Le kit ne passe pas sur votre site aujourd’hui.",
+  "accueilInformationsDu": "Informations du {date}",
+  "@accueilInformationsDu": {
+    "placeholders": { "date": { "type": "String" } }
+  },
+
+  "fileTitre": "Travail à envoyer",
+  "fileEnAttente": "{nombre, plural, =0{Tout est envoyé.} =1{1 élément attend d’être envoyé.} other{{nombre} éléments attendent d’être envoyés.}}",
+  "@fileEnAttente": {
+    "placeholders": { "nombre": { "type": "int" } }
+  },
+  "fileRejetes": "{nombre, plural, =1{1 élément refusé par le serveur} other{{nombre} éléments refusés par le serveur}}",
+  "@fileRejetes": {
+    "placeholders": { "nombre": { "type": "int" } }
+  },
+  "fileDernierEnvoi": "Dernier envoi : {date}",
+  "@fileDernierEnvoi": {
+    "placeholders": { "date": { "type": "String" } }
+  },
+  "fileJamaisEnvoye": "Aucun envoi pour le moment.",
+  "fileEnvoyer": "Envoyer maintenant",
+
+  "envoiTermine": "{nombre, plural, =0{Rien à envoyer : tout est déjà sur le serveur.} =1{1 élément envoyé.} other{{nombre} éléments envoyés.}}",
+  "@envoiTermine": {
+    "placeholders": { "nombre": { "type": "int" } }
+  },
+  "envoiHorsLigne": "Pas de réseau : votre travail reste sur le téléphone et partira tout seul.",
+  "envoiPartiel": "Envoi incomplet : le reste partira à la prochaine tentative.",
+
+  "sessionExpiree": "Votre session a expiré. Reconnectez-vous pour envoyer votre travail : il reste gardé sur le téléphone.",
+  "seReconnecter": "Se reconnecter",
+  "accesFerme": "Votre accès est fermé. Le travail fait pendant votre mission peut encore être envoyé pendant quelques jours.",
+
+  "deconnexion": "Se déconnecter",
+  "deconnexionAvertissementTitre": "Du travail n’est pas encore envoyé",
+  "deconnexionNonEnvoyes": "{nombre, plural, =1{1 élément n’est pas encore envoyé.} other{{nombre} éléments ne sont pas encore envoyés.}}",
+  "@deconnexionNonEnvoyes": {
+    "placeholders": { "nombre": { "type": "int" } }
+  },
+  "deconnexionGarde": "Il reste gardé sur ce téléphone et partira à votre prochaine connexion.",
+  "annuler": "Annuler",
+
+  "actionsTitre": "Mon travail",
+  "actionSignal": "Je suis arrivé / Je pars",
+  "actionRapport": "Mon rapport du jour",
+  "actionVisas": "Rapports à viser",
+  "actionFeuilles": "Feuilles de présence",
+  "actionIncident": "Déclarer un incident",
+  "actionKit": "Mon kit",
+  "actionAlertes": "Alertes",
+  "actionAppreciations": "Mes appréciations",
+  "actualiserDonnees": "Actualiser mes données",
+  "donneesDu": "Données du {date}",
+  "@donneesDu": {
+    "placeholders": { "date": { "type": "String" } }
+  },
+  "donneesAbsentes": "Ces informations ne sont pas encore sur le téléphone. Connectez-vous au réseau, puis appuyez sur « Actualiser mes données » depuis l’accueil.",
+  "preparationHorsLigne": "Pas de réseau : les données gardées sur le téléphone restent utilisables.",
+  "preparationTerminee": "Données du jour mises à jour.",
+  "enregistre": "Enregistré sur le téléphone. Il partira dès que le réseau le permettra.",
+  "champObligatoire": "Ce champ est obligatoire.",
+  "positionRecherche": "Recherche de la position…",
+  "valider": "Valider",
+  "facultatif": "(facultatif)",
+  "oui": "Oui",
+  "non": "Non",
+  "jeNeSaisPas": "Je ne sais pas",
+
+  "signalTitre": "Arrivée et départ",
+  "signalExplication": "Appuyez en arrivant sur le site, puis en partant. Ce signal prévient votre superviseur : il ne remplace pas la feuille de présence.",
+  "signalArrivee": "JE SUIS ARRIVÉ",
+  "signalDepart": "JE PARS",
+  "signalArriveeEnregistree": "Arrivée enregistrée à {heure}.",
+  "@signalArriveeEnregistree": {
+    "placeholders": { "heure": { "type": "String" } }
+  },
+  "signalDepartEnregistre": "Départ enregistré à {heure}.",
+  "@signalDepartEnregistre": {
+    "placeholders": { "heure": { "type": "String" } }
+  },
+  "siteDuJourInconnu": "Le site du jour n’est pas connu sur le téléphone : le serveur le retrouvera.",
+  "signalDansZone": "Vous êtes dans la zone du site, à {distance} m.",
+  "@signalDansZone": {
+    "placeholders": { "distance": { "type": "int" } }
+  },
+  "signalHorsZone": "Vous êtes à {distance} m du site, au-delà de sa zone de {rayon} m.",
+  "@signalHorsZone": {
+    "placeholders": { "distance": { "type": "int" }, "rayon": { "type": "int" } }
+  },
+  "signalHorsZoneRefus": "Rapprochez-vous du site pour signaler votre arrivée. Si vous êtes bien sur place, prévenez votre superviseur : lui seul peut vous marquer présent sur la feuille.",
+  "signalHorsZoneToleree": "Votre superviseur verra cet écart. Vous pouvez signaler quand même.",
+  "signalSiteNonLocalise": "Ce site n’a pas encore de coordonnées : la distance ne peut pas être vérifiée.",
+
+  "incidentNature": "Que s’est-il passé ?",
+  "incidentNatureObligatoire": "Cochez au moins une nature d’incident.",
+  "incidentRecit": "Racontez ce qui s’est passé",
+  "incidentRecitCourt": "Quelques phrases au moins : le récit doit être exploitable.",
+  "incidentGravite": "Gravité",
+  "incidentGraviteObligatoire": "Choisissez le niveau de gravité.",
+  "incidentDanger": "Danger grave ou immédiat",
+  "incidentEnCours": "L’incident est-il toujours en cours ?",
+  "incidentLieu": "Où ?",
+  "incidentLieuPrecision": "Précisez le lieu (facultatif)",
+  "incidentImpacts": "Conséquences (facultatif)",
+  "incidentPersonnesAffectees": "Nombre de personnes touchées (facultatif)",
+  "incidentMesures": "Mesures déjà prises (facultatif)",
+  "incidentMesuresPrecisions": "Précisions sur les mesures (facultatif)",
+  "incidentInformes": "Personnes déjà prévenues (facultatif)",
+  "incidentEnregistrer": "Enregistrer la déclaration",
+  "lieuSite": "Sur le site",
+  "lieuTrajetAller": "Sur le trajet aller",
+  "lieuTrajetRetour": "Sur le trajet retour",
+  "lieuAutre": "Ailleurs",
+
+  "photosTitre": "Photos (facultatif)",
+  "photoPrendre": "Prendre une photo",
+  "photoRetirer": "Retirer la photo",
+  "photoImpossible": "La photo n’a pas pu être prise : {message}",
+  "@photoImpossible": {
+    "placeholders": { "message": { "type": "String" } }
+  },
+
+  "kitAucun": "Aucun kit ne vous est confié sur le téléphone.",
+  "kitEtat": "État : {etat}",
+  "@kitEtat": {
+    "placeholders": { "etat": { "type": "String" } }
+  },
+  "kitPanne": "Signaler une panne",
+  "kitPerteVol": "Déclarer une perte ou un vol",
+  "kitRestitution": "Restituer le kit",
+  "kitAutresMouvements": "La remise, le transfert à un autre agent et le changement de site se déclarent au back-office.",
+  "suiviReponseAgent": "Réponse de l’agent, le {date} : {reponse}",
+  "@suiviReponseAgent": {
+    "placeholders": { "date": { "type": "String" }, "reponse": { "type": "String" } }
+  },
+  "kitEtatConstate": "État constaté du kit",
+  "kitEtatObligatoire": "Constatez l’état du kit : c’est lui qui engage la responsabilité de chacun.",
+  "etatBon": "Bon",
+  "etatUsage": "Usagé",
+  "etatEndommage": "Endommagé",
+  "etatIncomplet": "Incomplet",
+  "kitCirconstance": "Perte ou vol ?",
+  "circonstancePerte": "Perte",
+  "circonstanceVol": "Vol",
+  "kitCommentaire": "Commentaire (facultatif)",
+  "kitPhotoSource": "Photo de celui qui remet le kit",
+  "kitPhotoDestination": "Photo de celui qui reçoit le kit",
+  "kitPhotosConseil": "Les deux photos engagent la responsabilité de chacun en cas de perte ou de casse.",
+  "kitEnregistrer": "Enregistrer le mouvement",
+
+  "alertesAucune": "Aucune alerte.",
+  "alerteNonLue": "Non lue",
+  "alerteMarquerLue": "J’ai lu cette alerte",
+  "alerteLue": "Lue",
+
+  "appreciationsAucune": "Aucune appréciation ne vous concerne.",
+  "appreciationDu": "Rapport du {date}, par {auteur}",
+  "@appreciationDu": {
+    "placeholders": { "date": { "type": "String" }, "auteur": { "type": "String" } }
+  },
+  "appreciationProduction": "Production : {valeur}",
+  "@appreciationProduction": {
+    "placeholders": { "valeur": { "type": "String" } }
+  },
+  "appreciationAnomalies": "Anomalies : {valeurs}",
+  "@appreciationAnomalies": {
+    "placeholders": { "valeurs": { "type": "String" } }
+  },
+  "appreciationObservation": "Observation : {texte}",
+  "@appreciationObservation": {
+    "placeholders": { "texte": { "type": "String" } }
+  },
+  "appreciationRepondre": "Répondre",
+  "appreciationVotreReponse": "Votre observation",
+  "appreciationReponseNonModifiable": "Votre réponse sera horodatée et ne pourra plus être modifiée, ni par vous ni par votre supérieur.",
+  "appreciationEnvoyerReponse": "Enregistrer ma réponse",
+  "appreciationReponseEnAttente": "Réponse enregistrée, en attente d’envoi",
+  "appreciationVotreReponseDu": "Votre réponse du {date}",
+  "@appreciationVotreReponseDu": {
+    "placeholders": { "date": { "type": "String" } }
+  },
+  "productionPassable": "Passable",
+  "productionPeuSatisfaisant": "Peu satisfaisant",
+  "productionSatisfaisant": "Satisfaisant",
+  "anomalieRetard": "Retard",
+  "anomalieAbsenteisme": "Absentéisme",
+  "anomalieProposDiscourtois": "Propos discourtois",
+  "anomalieAutre": "Autre",
+
+  "alertesNonLues": "{nombre, plural, =0{Aucune alerte non lue} =1{1 alerte non lue} other{{nombre} alertes non lues}}",
+  "@alertesNonLues": {
+    "placeholders": { "nombre": { "type": "int" } }
+  },
+  "visasEnAttente": "{nombre, plural, =0{Aucun rapport à viser} =1{1 rapport à viser} other{{nombre} rapports à viser}}",
+  "@visasEnAttente": {
+    "placeholders": { "nombre": { "type": "int" } }
+  },
+  "feuillesAValider": "{nombre, plural, =0{Aucune feuille à valider} =1{1 feuille à valider} other{{nombre} feuilles à valider}}",
+  "@feuillesAValider": {
+    "placeholders": { "nombre": { "type": "int" } }
+  },
+  "preparationEchecs": "Certaines données n’ont pas pu être mises à jour : {details}",
+  "@preparationEchecs": {
+    "placeholders": { "details": { "type": "String" } }
+  },
+  "confirmer": "Confirmer",
+  "sansPositionTitre": "Position introuvable",
+  "sansPositionContinuer": "Continuer sans position",
+
+  "kitMouvementEnAttente": "Déclaration enregistrée sur le téléphone, en attente d’envoi : {mouvement}",
+  "@kitMouvementEnAttente": {
+    "placeholders": { "mouvement": { "type": "String" } }
+  },
+  "etatKitPanne": "En panne",
+  "etatKitPerdu": "Perdu",
+  "etatKitVole": "Volé",
+  "etatKitReforme": "Réformé",
+
+  "rapportTypeAopk": "Rapport d’accueil (A-OPK)",
+  "rapportTypeOpk": "Rapport de production (opérateur)",
+  "rapportTypeSuperviseur": "Rapport de centre (superviseur)",
+  "rapportStatutBrouillon": "Brouillon",
+  "rapportStatutSoumis": "Signé, en attente de visa",
+  "rapportStatutVise": "Visé",
+  "rapportStatutRejete": "Renvoyé pour correction",
+  "rapportStatutClos": "Clos",
+  "rapportJournee": "Journée du {date}",
+  "@rapportJournee": {
+    "placeholders": { "date": { "type": "String" } }
+  },
+  "rapportMotifRejet": "Motif du renvoi : {motif}",
+  "@rapportMotifRejet": {
+    "placeholders": { "motif": { "type": "String" } }
+  },
+  "rapportNonModifiable": "Ce rapport est signé : il n’est plus modifiable. Il ne le redevient que s’il vous est renvoyé pour correction.",
+  "rapportSigneEnAttente": "Signé sur le téléphone, en attente d’envoi.",
+  "rapportIdentification": "Identification",
+  "rapportIdentificationAide": "Pré-remplie depuis votre affectation : vérifiez-la, vous ne la saisissez pas.",
+  "rapportLigne": "{libelle} : {valeur}",
+  "@rapportLigne": {
+    "placeholders": { "libelle": { "type": "String" }, "valeur": { "type": "String" } }
+  },
+  "rapportCentre": "Centre",
+  "rapportSite": "Site",
+  "rapportSuperieur": "Supérieur désigné",
+  "rapportHeureArrivee": "Heure d’arrivée",
+  "rapportHeureDepart": "Heure de départ",
+  "rapportHeureNonSaisie": "non saisie",
+  "rapportActivites": "Activités d’accueil",
+  "rapportPrevu": "Prévu",
+  "rapportRealise": "Réalisé",
+  "rapportPrevuRealise": "{libelle} — prévu : {prevu}, réalisé : {realise}",
+  "@rapportPrevuRealise": {
+    "placeholders": { "libelle": { "type": "String" }, "prevu": { "type": "String" }, "realise": { "type": "String" } }
+  },
+  "activiteAffluence": "Affluence",
+  "activiteJustificatifsRecus": "Justificatifs reçus",
+  "activiteJustificatifsTransmis": "Justificatifs transmis",
+  "activitePlaintesEnregistrees": "Plaintes enregistrées",
+  "activitePlaintesReversees": "Plaintes reversées",
+  "affluenceFaible": "Faible (1 à 25)",
+  "affluenceMoyen": "Moyenne (25 à 50)",
+  "affluenceEleve": "Élevée (50 à 100)",
+  "rapportProduction": "Production du kit",
+  "productionObjectif": "Objectif du jour",
+  "productionObjectifAide": "Figé à l’ouverture du rapport. L’écart et le taux de réalisation sont calculés par le serveur.",
+  "productionEnregistrements": "Enregistrements réalisés",
+  "productionRecepisses": "Récépissés transmis",
+  "productionNonValides": "Enregistrements non validés",
+  "productionMotifNonValides": "Pourquoi ces enregistrements ne sont-ils pas validés ?",
+  "productionMotifObligatoire": "Indiquez pourquoi ces enregistrements ne sont pas validés : le chiffre seul ne suffit pas.",
+  "productionEcart": "Écart",
+  "productionTaux": "Taux de réalisation",
+  "productionEtatKit": "État du kit",
+  "etatKitFonctionnel": "Fonctionnel",
+  "etatKitPannePartielle": "Panne partielle",
+  "etatKitPanneTotale": "Panne totale",
+  "rapportEvolution": "Évolution des enregistrements",
+  "rapportEvolutionAide": "Consolidée depuis les rapports d’opérateur déjà visés : elle ne se ressaisit pas. Une correction se fait au back-office, avec son motif.",
+  "evolutionPersonnes": "Personnes enregistrées",
+  "evolutionValides": "Dossiers validés",
+  "evolutionAReprendre": "Dossiers à reprendre",
+  "rapportQualite": "Contrôle qualité",
+  "rapportQualiteAide": "Le taux de conformité est calculé par le serveur.",
+  "qualiteControles": "Dossiers contrôlés",
+  "qualiteConformes": "Dossiers conformes",
+  "qualiteNonConformes": "Dossiers non conformes",
+  "qualiteDoublons": "Doublons détectés",
+  "qualiteErreurs": "Erreurs de saisie",
+  "qualiteCorrections": "Corrections effectuées",
+  "qualiteIncidents": "Incidents majeurs",
+  "rapportLogistique": "Situation logistique",
+  "logistiqueRessource": "Ressource",
+  "logistiqueDisponible": "Disponible",
+  "logistiqueFonctionnelle": "Fonctionnelle",
+  "logistiqueBesoin": "Besoin",
+  "logistiqueObservation": "Observation (facultatif)",
+  "logistiqueAjouter": "Ajouter une ressource",
+  "rapportDifficultes": "Difficultés rencontrées et solutions",
+  "rapportDifficulte": "Difficulté",
+  "rapportSolution": "Solution apportée ou proposée (facultatif)",
+  "rapportAjouterDifficulte": "Ajouter une difficulté",
+  "rapportPoints": "Points à améliorer",
+  "rapportPoint": "Point à améliorer",
+  "rapportAjouterPoint": "Ajouter un point",
+  "retirerLigne": "Retirer cette ligne",
+  "rapportSuiviAgents": "Suivi des agents",
+  "rapportSuiviAide": "La présence vient de la feuille de présence validée : elle ne se saisit pas ici.",
+  "suiviPresence": "Présence : {valeur}",
+  "@suiviPresence": {
+    "placeholders": { "valeur": { "type": "String" } }
+  },
+  "suiviProduction": "Production",
+  "suiviAnomalies": "Anomalies (facultatif)",
+  "suiviObservation": "Observation (facultatif)",
+  "presencePresent": "Présent",
+  "presenceAbsent": "Absent",
+  "presenceAbsentJustifie": "Absent justifié",
+  "presenceInconnue": "pas encore connue",
+  "categorieSuperviseur": "Superviseur",
+  "categorieOperateur": "Opérateur de kit",
+  "categorieAssistant": "A-OPK",
+  "rapportEnregistrer": "Enregistrer sans signer",
+  "rapportSigner": "Signer et envoyer",
+  "rapportSignerTitre": "Signer le rapport ?",
+  "rapportSignerTexte": "Une fois signé, le rapport part à votre supérieur et vous ne pouvez plus le modifier.",
+  "rapportSigne": "Rapport signé. Il partira dès que le réseau le permettra.",
+
+  "visasAide": "Vos agents ont signé : leurs chiffres ne remonteront qu’après votre visa.",
+  "visasAucun": "Aucun rapport n’attend votre visa sur le téléphone.",
+  "visaSigneLe": "Signé le {date}",
+  "@visaSigneLe": {
+    "placeholders": { "date": { "type": "String" } }
+  },
+  "visaOuvrir": "Lire et viser",
+  "visaContenuPartiel": "Les difficultés et le suivi des agents se lisent au back-office.",
+  "visaCommentaire": "Commentaire (facultatif)",
+  "visaViser": "Viser le rapport",
+  "visaRenvoyerTitre": "Renvoyer pour correction",
+  "visaMotif": "Ce qui doit être corrigé",
+  "visaMotifObligatoire": "Dites ce qui doit être corrigé : un renvoi sans motif est inexploitable.",
+  "visaRenvoyer": "Renvoyer à l’auteur",
+  "visaFait": "Visa enregistré. Il partira dès que le réseau le permettra.",
+  "renvoiFait": "Renvoi enregistré. Il partira dès que le réseau le permettra.",
+
+  "feuillesAucune": "Aucune feuille de présence du jour sur le téléphone.",
+  "feuilleAValider": "À valider",
+  "feuilleValidee": "Validée",
+  "feuilleValideeEnAttente": "Validée sur le téléphone, en attente d’envoi",
+  "feuilleAgents": "{nombre, plural, =0{Aucun agent attendu} =1{1 agent attendu} other{{nombre} agents attendus}}",
+  "@feuilleAgents": {
+    "placeholders": { "nombre": { "type": "int" } }
+  },
+  "feuilleOuvrir": "Ouvrir la feuille",
+  "feuilleAide": "Marquez chaque agent. Le signal d’arrivée vous aide, mais seule votre validation fait foi.",
+  "feuilleDejaValidee": "Cette feuille est validée : seul le chef d’antenne régional peut la corriger.",
+  "feuilleSignal": "Signal d’arrivée à {heure}, à {distance} m du site {zone}",
+  "@feuilleSignal": {
+    "placeholders": { "heure": { "type": "String" }, "distance": { "type": "String" }, "zone": { "type": "String" } }
+  },
+  "feuilleSignalDansZone": "(dans la zone)",
+  "feuilleSignalHorsZone": "(hors de la zone)",
+  "feuilleAucunSignal": "Aucun signal d’arrivée",
+  "feuilleMotif": "Motif de l’absence",
+  "feuilleMotifObligatoire": "Une absence justifiée exige un motif.",
+  "feuilleNonMarque": "Marquez la présence de chaque agent avant de valider.",
+  "feuilleValider": "Valider la feuille",
+  "feuilleConfirmationTitre": "Valider la feuille ?",
+  "feuilleConfirmationTexte": "Votre position est enregistrée avec la validation. Une feuille validée ne se modifie plus : seul le chef d’antenne régional peut la corriger.",
+  "feuilleValideeEnregistree": "Feuille validée. Elle partira dès que le réseau le permettra.",
+  "sansPositionFeuille": "Sans position, la distance entre vous et le site ne pourra pas être vérifiée."
+}

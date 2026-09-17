@@ -1,0 +1,7 @@
+# Les textes de l'écran vivent dans des fichiers de traduction (cadrage, section 14) :
+# français d'abord, mooré et dioula ensuite — un fichier .arb par langue, sans toucher au code.
+arb-dir: lib/l10n
+template-arb-file: app_fr.arb
+output-localization-file: textes.dart
+output-class: Textes
+nullable-getter: false

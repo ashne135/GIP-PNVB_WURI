@@ -1,0 +1,33 @@
+{
+    "name": "pnvb-back-office",
+    "private": true,
+    "type": "module",
+    "description": "Back-office GIP-PNVB — client de l'API, au même titre que l'application mobile",
+    "scripts": {
+        "dev": "vite",
+        "build": "vite build",
+        "apercu": "vite preview",
+        "test": "vitest run",
+        "test:suivi": "vitest"
+    },
+    "dependencies": {
+        "@tanstack/react-query": "^5.102.8",
+        "axios": "^1.7.4",
+        "leaflet": "^1.9.4",
+        "leaflet.markercluster": "^1.5.3",
+        "react": "^18.3.1",
+        "react-dom": "^18.3.1",
+        "react-router-dom": "^7.18.3"
+    },
+    "devDependencies": {
+        "@testing-library/jest-dom": "^6.6.3",
+        "@testing-library/react": "^16.1.0",
+        "@vitejs/plugin-react": "^5.2.0",
+        "autoprefixer": "^10.4.20",
+        "jsdom": "^25.0.1",
+        "postcss": "^8.4.47",
+        "tailwindcss": "^3.4.13",
+        "vite": "^7.3.6",
+        "vitest": "^5.0.0"
+    }
+}

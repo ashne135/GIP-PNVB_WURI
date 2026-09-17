@@ -1,0 +1,58 @@
+/.phpunit.cache
+/node_modules
+/public/build
+/public/hot
+/public/storage
+/storage/*.key
+/storage/pail
+/vendor
+.env
+.env.backup
+.env.production
+.phpactor.json
+.phpunit.result.cache
+Homestead.json
+Homestead.yaml
+npm-debug.log
+yarn-error.log
+/auth.json
+/.fleet
+/.idea
+/.nova
+/.vscode
+/.zed
+
+# ---------------------------------------------------------------------------
+# Ce dépôt porte TROIS projets : l'API Laravel, le back-office React et
+# l'application Flutter. Les règles ci-dessus ne valent que pour Laravel —
+# « /node_modules » est ancré à la racine et n'attrape donc PAS
+# frontend/node_modules. Sans les lignes qui suivent, un premier commit
+# embarquerait plusieurs centaines de mégaoctets de dépendances et de
+# compilations.
+# ---------------------------------------------------------------------------
+
+# Back-office React
+/frontend/node_modules
+/frontend/dist
+/frontend/.env
+/frontend/.env.local
+/frontend/.env.*.local
+
+# Application mobile Flutter
+/mobile/build
+/mobile/.dart_tool
+/mobile/.flutter-plugins
+/mobile/.flutter-plugins-dependencies
+/mobile/.packages
+/mobile/*.iml
+/mobile/android/.gradle
+/mobile/android/app/build
+/mobile/android/local.properties
+/mobile/android/key.properties
+/mobile/ios/Pods
+/mobile/ios/.symlinks
+
+# Fichiers produits à l'exécution : exports générés et archives de démonstration
+/storage/exports
+*.apk
+
