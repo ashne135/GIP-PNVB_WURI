@@ -148,22 +148,75 @@ main.
 
 ## 5. Clé, schéma et données de base
 
+**D'abord, le référentiel territorial.** Sans lui, aucune région, commune ni
+localité : le back-office s'affiche mais reste vide, et le chef d'antenne n'a
+pas de région. Le classeur s'envoie **hors du répertoire web** — sinon il
+serait téléchargeable — et sans espaces dans le nom :
+
+```bash
+# En local
+scp "Liste des villages.xlsx" moncompte@ssh-moncompte.alwaysdata.net:pnvb-donnees/referentiel-villages.xlsx
+
+# Sur le serveur
+chmod 640 ~/pnvb-donnees/referentiel-villages.xlsx
+```
+
+Puis, dans `.env` :
+
+```dotenv
+PNVB_FICHIER_REFERENTIEL=/home/moncompte/pnvb-donnees/referentiel-villages.xlsx
+```
+
+La lecture d'un `.xlsx` exige les extensions **`zip`** et **`gd`**
+(`php -m` pour vérifier). Ensuite :
+
 ```bash
 php artisan key:generate
 php artisan migrate --force
-php artisan db:seed --class=Database\\Seeders\\RolesEtPermissionsSeeder
-php artisan db:seed --class=Database\\Seeders\\ParametresSeeder
+php -d memory_limit=1024M artisan db:seed --force
 php artisan storage:link
 ```
+
+`db:seed` enchaîne, dans l'ordre : rôles et permissions, paramètres,
+nomenclatures d'incidents, **référentiel territorial**, comptes
+d'administration. L'ordre compte — les comptes rattachent le chef d'antenne à
+une région, qui doit donc exister. Les **données de démonstration sont
+écartées d'office** hors environnement local ou de test : aucun risque de
+déverser des milliers de volontaires fictifs en production.
+
+`memory_limit=1024M` n'est pas superflu : lire 7 000 localités avec
+PhpSpreadsheet dépasse la limite par défaut.
+
+> **Les anomalies affichées pendant le chargement viennent du fichier source**,
+> pas du déploiement : localités sans site faute de quota, écarts entre
+> population déclarée et somme des localités, coquilles corrigées à la lecture.
+> Elles sont à arbitrer avec le client ; elles n'empêchent rien.
 
 `--force` est requis : Laravel refuse de migrer en production sans
 confirmation explicite.
 
-Les deux seeders sont **idempotents** : les rejouer après une mise à jour
-ajoute les nouveaux rôles, permissions et paramètres sans toucher aux données.
+Les cinq seeders sont **idempotents** : les rejouer après une mise à jour
+ajoute ce qui manque — nouveaux rôles, permissions, paramètres, localités —
+sans dupliquer ni renuméroter. Les codes de commune déjà attribués ne sont
+jamais régénérés : ils figurent sur des documents papier.
 
-Il reste ensuite à créer le premier compte administrateur (import du
-référentiel, ou création manuelle via `php artisan tinker`).
+**Les comptes d'administration créés sont des comptes de démonstration.**
+Quatre comptes, un par rôle web, tous marqués `est_fictif = true` :
+
+| Téléphone | Rôle |
+|---|---|
+| `+22670000001` | Super administrateur |
+| `+22670000002` | Administrateur national |
+| `+22670000003` | Chef d'antenne régional |
+| `+22670000004` | Observateur |
+
+Mot de passe initial : `ChangerMoi#2026`, **à changer obligatoirement à la
+première connexion** — le serveur l'impose avant toute autre action.
+
+Ils suffisent pour une démonstration. **Avant une mise en service réelle**, il
+faut créer le véritable super administrateur par une procédure dédiée, puis
+purger ces comptes : leurs numéros et leur mot de passe initial sont publics,
+puisqu'ils figurent dans ce dépôt.
 
 ---
 
