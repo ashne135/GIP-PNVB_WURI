@@ -14,6 +14,23 @@ import react from '@vitejs/plugin-react';
 export default defineConfig({
     plugins: [react()],
 
+    /*
+     * LE CHEMIN DE BASE, quand le back-office n'est pas servi à la racine.
+     *
+     * Vite écrit les liens vers ses fichiers À LA COMPILATION. Servi sous
+     * https://exemple.net/pnvbwuri sans ce réglage, il chercherait ses scripts
+     * à la racine du domaine : page blanche, sans la moindre erreur visible —
+     * la panne la plus coûteuse à diagnostiquer.
+     *
+     * La valeur par défaut reste « / » : une installation à la racine, ou sur
+     * un sous-domaine dédié, n'a rien à changer. Sous un chemin :
+     *
+     *     VITE_BASE=/pnvbwuri/ npm run build
+     *
+     * La barre oblique finale n'est pas optionnelle.
+     */
+    base: process.env.VITE_BASE || '/',
+
     server: {
         port: 5173,
         proxy: {
