@@ -17,6 +17,29 @@ SSH et des tâches planifiées. Tout tient sur le même compte.
 | Extensions | `pdo_mysql`, `mbstring`, `openssl`, `tokenizer`, `xml`, `ctype`, `json`, `bcmath`, `fileinfo`, **`zip`**, **`gd`** |
 | Base | **MariaDB 11.4** sur alwaysdata (le poste de développement, lui, tourne sous MySQL 8.4) |
 
+> **MariaDB 10.10 au minimum**, pour deux raisons distinctes rencontrées en
+> essayant réellement le schéma sur MariaDB 10.4 :
+>
+> | Obstacle | Version qui le lève |
+> |---|---|
+> | `add \`batch_uuid\` uuid null` → erreur 1064 : le pilote `mariadb` de Laravel écrit un type `uuid` **natif** | **10.7** |
+> | `\`effectue_le\` timestamp not null` → erreur 1067 : sans `explicit_defaults_for_timestamp`, le moteur pose une date zéro que le mode strict refuse | **10.10** (le réglage y devient ON par défaut ; il est en lecture seule, donc non corrigeable après coup) |
+>
+> Le 11.4 d'alwaysdata couvre les deux. **Précision sur ce qui est vérifié et
+> ce qui ne l'est pas :** l'échec sous 10.4 est constaté ; le succès sous 11.4
+> est déduit de l'historique des versions de MariaDB, faute d'un 11.4 sous la
+> main. Si `migrate` achoppait malgré tout sur l'un de ces deux points, le
+> repli est `DB_CONNECTION=mysql`, dont la grammaire écrit `char(36)` et reste
+> acceptée par toutes les versions.
+>
+> **Ce qui est vérifié, en revanche :** les quatre **colonnes générées** du
+> schéma fonctionnent sur MariaDB, syntaxe et résultats compris.
+> `cle_unicite_active` — l'index qui interdit en base deux affectations actives
+> pour un même agent — a été créée par la migration réelle ; `ecart_enregistrements`,
+> `taux_realisation` et `taux_conformite` ont été éprouvées séparément, y
+> compris le cas où l'objectif est nul et où le taux doit rendre `NULL` plutôt
+> que de diviser par zéro.
+
 > **La base n'est pas la même qu'en développement, et cela se configure.**
 > Laravel 11 fournit un pilote `mariadb` distinct du pilote `mysql` : c'est lui
 > qu'il faut désigner, sinon le SQL émis vise MySQL.
