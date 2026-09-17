@@ -178,11 +178,24 @@ npm run build
 VITE_BASE=/pnvbwuri/ npm run build
 ```
 
-> **Le chemin de base n'est pas optionnel.** Vite inscrit les liens vers ses
-> fichiers *à la compilation*. Compilé pour la racine puis servi sous
-> `/pnvbwuri`, le back-office cherche ses scripts à la racine du domaine et
-> n'affiche **qu'une page blanche, sans aucune erreur** — la panne la plus
-> longue à diagnostiquer, parce qu'elle ne dit rien.
+> **Le chemin de base n'est pas optionnel, et il gouverne TROIS choses.**
+> Vite inscrit les liens vers ses fichiers *à la compilation*. Compilé pour la
+> racine puis servi sous `/pnvbwuri`, le back-office cherche ses scripts à la
+> racine du domaine et n'affiche **qu'une page blanche, sans aucune erreur** —
+> la panne la plus longue à diagnostiquer, parce qu'elle ne dit rien.
+>
+> Mais `VITE_BASE` ne suffisait pas : deux autres réglages en dépendent, et
+> tous deux se déduisent désormais de la même valeur, pour qu'ils ne puissent
+> pas diverger.
+>
+> | Ce qui dépend du chemin | Symptôme si on l'oublie |
+> |---|---|
+> | Les fichiers compilés (`base` de Vite) | Page blanche, aucune erreur |
+> | Le routeur (`basename`) | L'adresse perd son préfixe ; recharger la page tombe sur une autre application |
+> | L'adresse de l'API (`baseURL`) | L'écran s'affiche, mais toute connexion répond « Une erreur est survenue » |
+>
+> Les deux derniers sont insidieux : **l'interface paraît fonctionner**. C'est
+> la seule panne de cette procédure qui ne ressemble pas à une panne.
 >
 > Pour vérifier avant d'envoyer : `dist/index.html` doit contenir
 > `src="/pnvbwuri/assets/…"`. S'il contient `src="/assets/…"`, la compilation

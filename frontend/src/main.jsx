@@ -26,10 +26,29 @@ const cache = new QueryClient({
     },
 });
 
+/*
+ * LE ROUTEUR SUIT LE CHEMIN DE DÉPLOIEMENT.
+ *
+ * Servi sous https://exemple.net/pnvbwuri, le back-office doit produire des
+ * adresses préfixées. Sans `basename`, le routeur se croit à la racine du
+ * domaine : la barre d'adresse affiche /connexion au lieu de
+ * /pnvbwuri/connexion, et recharger la page tombe sur ce qui occupe la racine
+ * — une autre application, ou rien.
+ *
+ * Le symptôme est trompeur, car la navigation interne CONTINUE DE FONCTIONNER
+ * tant qu'on ne recharge pas : l'écran paraît sain alors que ses adresses sont
+ * fausses.
+ *
+ * BASE_URL est la valeur figée par Vite à la compilation, celle-là même dont
+ * le client d'API déduit son adresse. React Router la veut sans barre oblique
+ * finale — et « / » doit devenir la chaîne vide.
+ */
+const basename = import.meta.env.BASE_URL.replace(/\/$/, '');
+
 createRoot(document.getElementById('racine')).render(
     <StrictMode>
         <QueryClientProvider client={cache}>
-            <BrowserRouter>
+            <BrowserRouter basename={basename}>
                 <FournisseurAuth>
                     <App />
                 </FournisseurAuth>

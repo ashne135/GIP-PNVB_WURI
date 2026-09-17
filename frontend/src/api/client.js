@@ -15,8 +15,22 @@ import axios from 'axios';
 
 const CLE_JETON = 'pnvb.jeton';
 
+/*
+ * L'ADRESSE DE L'API SUIT LE CHEMIN DE DÉPLOIEMENT.
+ *
+ * Servi sous https://exemple.net/pnvbwuri, le back-office doit appeler
+ * /pnvbwuri/api/v1 — et non /api/v1, qui désignerait la racine du domaine,
+ * donc une tout autre application. Le symptôme est trompeur : l'écran
+ * s'affiche parfaitement et seules les requêtes échouent.
+ *
+ * import.meta.env.BASE_URL est la valeur de `base` figée par Vite à la
+ * compilation. La déduire d'ici plutôt que de la redéclarer garantit que les
+ * fichiers, le routeur et l'API ne puissent pas diverger.
+ */
+const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+
 export const client = axios.create({
-    baseURL: '/api/v1',
+    baseURL: `${base}/api/v1`,
     headers: {
         Accept: 'application/json',
         'X-Requested-With': 'XMLHttpRequest',
