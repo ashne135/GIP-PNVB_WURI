@@ -129,9 +129,15 @@ class PresenceController extends Controller
             ->with([
                 'volontaire:id,user_id,matricule,categorie', 'volontaire.user:id,nom,prenoms',
                 'feuille:id,site_id,date_presence', 'feuille.site:id,code,nom',
+                'region:id,code,nom', 'examinePar:id,nom,prenoms',
             ])
             ->when($requete->filled('statut'), fn ($q) => $q->where('statut', $requete->string('statut')))
+            ->when($requete->filled('type_ecart'),
+                fn ($q) => $q->where('type_ecart', $requete->string('type_ecart')))
+            ->when($requete->filled('du'), fn ($q) => $q->whereDate('date_constat', '>=', $requete->date('du')))
+            ->when($requete->filled('au'), fn ($q) => $q->whereDate('date_constat', '<=', $requete->date('au')))
             ->orderByDesc('date_constat')
+            ->orderByDesc('id')
             ->paginate(min($requete->integer('par_page', 50), 200));
 
         activity('rapprochement')
@@ -144,6 +150,61 @@ class PresenceController extends Controller
                 ? 'Aucun écart constaté.'
                 : "{$ecarts->total()} écarts constatés entre les feuilles et les relevés.",
             $ecarts
+        );
+    }
+
+    /**
+     * Traiter un écart : l'examiner, puis le clore.
+     *
+     * Le commentaire est OBLIGATOIRE et S'AJOUTE aux précédents, signé et daté :
+     * « examiné » puis « clos » laissent deux lignes, et personne ne réécrit ce
+     * qu'un autre a constaté. Un écart clos ne se rouvre pas ici.
+     *
+     * Le traitement ne montre rien de plus que la consultation : toujours le
+     * nombre de relevés, jamais une position.
+     */
+    public function traiterEcart(Request $requete, EcartPresence $ecart): JsonResponse
+    {
+        $this->authorize('traiter', $ecart);
+
+        $valide = $requete->validate([
+            'statut' => ['required', Rule::in(['examine', 'clos'])],
+            'commentaire' => ['required', 'string', 'min:5', 'max:2000'],
+        ], [
+            'statut.required' => 'Choisissez « examiné » ou « clos ».',
+            'statut.in' => 'Un écart se marque « examiné » ou « clos ».',
+            'commentaire.required' => 'Écrivez ce que vous avez constaté : le commentaire est obligatoire.',
+            'commentaire.min' => 'Le commentaire est trop court pour expliquer le traitement.',
+        ]);
+
+        if ($ecart->statut === 'clos') {
+            return ReponseApi::echec('Cet écart est déjà clos : il ne peut plus être modifié.', null, 422);
+        }
+
+        $auteur = $requete->user();
+        $ligne = sprintf(
+            '[%s · %s] %s',
+            now()->format('d/m/Y H:i'),
+            $auteur->nomComplet(),
+            trim($valide['commentaire'])
+        );
+
+        $ecart->update([
+            'statut' => $valide['statut'],
+            'examine_par' => $auteur->id,
+            'examine_le' => now(),
+            'commentaire' => $ecart->commentaire ? $ecart->commentaire."\n".$ligne : $ligne,
+        ]);
+
+        activity('rapprochement')
+            ->causedBy($auteur)
+            ->performedOn($ecart)
+            ->withProperties(['statut' => $valide['statut'], 'commentaire' => trim($valide['commentaire'])])
+            ->log($valide['statut'] === 'clos' ? 'Écart de présence clos' : 'Écart de présence examiné');
+
+        return ReponseApi::succes(
+            $valide['statut'] === 'clos' ? 'Écart clos.' : 'Écart marqué comme examiné.',
+            $ecart->fresh()->load(['examinePar:id,nom,prenoms'])
         );
     }
 }

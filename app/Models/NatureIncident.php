@@ -26,7 +26,9 @@ class NatureIncident extends Model
 
     public function incidents(): BelongsToMany
     {
-        return $this->belongsToMany(Incident::class);
+        // Le pivot porte un nom court (incident_nature, incident_impact…) :
+        // sans le nommer, Eloquent cherche une table qui n'existe pas.
+        return $this->belongsToMany(Incident::class, 'incident_nature', 'nature_incident_id', 'incident_id');
     }
 
     public function scopeActifs(Builder $requete): Builder

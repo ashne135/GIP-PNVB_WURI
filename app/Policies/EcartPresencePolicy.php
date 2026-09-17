@@ -45,8 +45,13 @@ class EcartPresencePolicy extends PolitiqueDeBase
         return $autorise;
     }
 
-    public function examiner(User $utilisateur, EcartPresence $ecart): bool
+    /**
+     * Marquer un écart examiné ou clos, avec commentaire. Droit distinct de la
+     * consultation (décision du client, 17/09/2026) : lire un constat et le
+     * clore ne sont pas le même acte. Le périmètre reste celui de la région.
+     */
+    public function traiter(User $utilisateur, EcartPresence $ecart): bool
     {
-        return $this->autoriser($utilisateur, 'ecarts.consulter', $ecart);
+        return $this->autoriser($utilisateur, 'ecarts.traiter', $ecart);
     }
 }

@@ -102,6 +102,16 @@ class AuthController extends Controller
             return null;
         }
 
+        // Un compte d'administration n'a ni mission ni localité : sa fermeture
+        // est un acte du super administrateur, pas une fin de vague.
+        if ($utilisateur->statut_compte === StatutCompte::Ferme && ! $utilisateur->volontaire()->exists()) {
+            return ReponseApi::echec(
+                'Votre compte a été fermé par l\'administration. Adressez-vous au super administrateur.',
+                ['statut_compte' => $utilisateur->statut_compte->value],
+                403
+            );
+        }
+
         $message = match ($utilisateur->statut_compte) {
             StatutCompte::Inactif => "Votre compte n'est pas encore activé. "
                 .'Il le sera dès votre affectation à une mission.',

@@ -49,8 +49,29 @@ describe('le menu', () => {
             ),
         );
 
-        expect(menu).toHaveLength(4);
-        expect(menu.flatMap((r) => r.liens)).toHaveLength(10);
+        // Pilotage, Terrain, Déploiement, Référentiel, et Administration pour les
+        // seuls Paramètres : les comptes, les listes et les synchronisations
+        // demandent chacun leur propre droit.
+        expect(menu.map((r) => r.titre)).toEqual(['Pilotage', 'Terrain', 'Déploiement', 'Référentiel', 'Administration']);
+        expect(menu.flatMap((r) => r.liens)).toHaveLength(11);
+        expect(menu.at(-1).liens.map((l) => l.libelle)).toEqual(['Paramètres']);
+    });
+
+    it('réserve les comptes d’administration au porteur de roles.attribuer', () => {
+        const libelles = (menu) => menu.flatMap((r) => r.liens.map((l) => l.libelle));
+
+        expect(libelles(menuPour(porteur('parametres.consulter')))).not.toContain('Comptes d’administration');
+        expect(libelles(menuPour(porteur('roles.attribuer', 'journal.consulter')))).toEqual([
+            'Comptes d’administration',
+            'Synchronisations',
+            'Journal d’activité',
+        ]);
+    });
+
+    it('ouvre les présences au seul porteur des écarts', () => {
+        const menu = menuPour(porteur('ecarts.consulter'));
+
+        expect(menu.flatMap((r) => r.liens.map((l) => l.chemin))).toEqual(['/presences']);
     });
 
     it('ne montre rien du tout à un compte sans permission', () => {

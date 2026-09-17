@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\AlertesController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\CentresController;
 use App\Http\Controllers\Api\CharteController;
+use App\Http\Controllers\Api\ComptesAdministrationController;
 use App\Http\Controllers\Api\EquipesController;
 use App\Http\Controllers\Api\ExportsPlanifiesController;
 use App\Http\Controllers\Api\FeuillesPresenceController;
@@ -13,6 +14,7 @@ use App\Http\Controllers\Api\ImportVolontairesController;
 use App\Http\Controllers\Api\IncidentsController;
 use App\Http\Controllers\Api\JournalController;
 use App\Http\Controllers\Api\KitsController;
+use App\Http\Controllers\Api\NomenclaturesIncidentController;
 use App\Http\Controllers\Api\ParametresController;
 use App\Http\Controllers\Api\PiecesJointesController;
 use App\Http\Controllers\Api\PresenceController;
@@ -24,6 +26,7 @@ use App\Http\Controllers\Api\RemplacementsController;
 use App\Http\Controllers\Api\SitesController;
 use App\Http\Controllers\Api\SyncController;
 use App\Http\Controllers\Api\TableauBordController;
+use App\Http\Controllers\Api\TerritoireController;
 use App\Http\Controllers\Api\TourneesController;
 use App\Http\Controllers\Api\VaguesController;
 use Illuminate\Support\Facades\Route;
@@ -71,6 +74,31 @@ Route::prefix('v1')->name('api.')->group(function () {
                 Route::get('regions', [ReferentielController::class, 'regions'])->name('regions');
                 Route::get('communes', [ReferentielController::class, 'communes'])->name('communes');
                 Route::get('localites', [ReferentielController::class, 'localites'])->name('localites');
+
+                /*
+                 * Le référentiel territorial : consultation et correction.
+                 * Correction nationale (referentiel.modifier_territoire),
+                 * dérogation au cadrage décidée par le client ; aperçu des
+                 * quotas avec simulation=1 avant tout enregistrement.
+                 */
+                Route::prefix('territoire')->name('territoire.')->group(function () {
+                    Route::get('regions', [TerritoireController::class, 'regions'])->name('regions');
+                    Route::get('provinces', [TerritoireController::class, 'provinces'])->name('provinces');
+                    Route::get('communes', [TerritoireController::class, 'communes'])->name('communes');
+                    Route::get('localites', [TerritoireController::class, 'localites'])->name('localites');
+                    Route::get('arrondissements', [TerritoireController::class, 'arrondissements'])
+                        ->name('arrondissements');
+                    Route::put('regions/{region}', [TerritoireController::class, 'modifierRegion'])
+                        ->name('regions.modifier');
+                    Route::put('provinces/{province}', [TerritoireController::class, 'modifierProvince'])
+                        ->name('provinces.modifier');
+                    Route::put('communes/{commune}', [TerritoireController::class, 'modifierCommune'])
+                        ->name('communes.modifier');
+                    Route::put('localites/{localite}', [TerritoireController::class, 'modifierLocalite'])
+                        ->name('localites.modifier');
+                    Route::post('localites', [TerritoireController::class, 'ajouterLocalite'])
+                        ->name('localites.ajouter');
+                });
 
                 /*
                  * Centres et sites : consultation et gestion. Pas de suppression —
@@ -236,6 +264,7 @@ Route::prefix('v1')->name('api.')->group(function () {
             Route::prefix('sync')->name('sync.')->group(function () {
                 Route::get('types', [SyncController::class, 'types'])->name('types');
                 Route::get('lots', [SyncController::class, 'lots'])->name('lots');
+                Route::get('supervision', [SyncController::class, 'supervision'])->name('supervision');
                 // Les photos partent APRÈS les données, une par une (section 11.8).
                 Route::post('fichiers', [PiecesJointesController::class, 'deposer'])->name('fichiers');
             });
@@ -317,6 +346,8 @@ Route::prefix('v1')->name('api.')->group(function () {
                 Route::get('carte', [PresenceController::class, 'carte'])->name('carte');
                 Route::post('releve', [PresenceController::class, 'deposerReleve'])->name('releve');
                 Route::get('ecarts', [PresenceController::class, 'ecarts'])->name('ecarts');
+                Route::post('ecarts/{ecart}/traiter', [PresenceController::class, 'traiterEcart'])
+                    ->name('ecarts.traiter');
             });
 
             Route::prefix('feuilles')->name('feuilles.')->group(function () {
@@ -415,6 +446,37 @@ Route::prefix('v1')->name('api.')->group(function () {
             Route::prefix('journal')->name('journal.')->group(function () {
                 Route::get('/', [JournalController::class, 'index'])->name('index');
                 Route::get('journaux', [JournalController::class, 'journaux'])->name('journaux');
+            });
+
+            /*
+            |--------------------------------------------------------------
+            | Comptes d'administration — super administrateur seul
+            |--------------------------------------------------------------
+            | Créer un compte, c'est attribuer des droits : roles.attribuer.
+            | Pas de suppression : un compte se ferme, et se rouvre.
+            */
+            Route::prefix('administration/comptes')->name('administration.comptes.')->group(function () {
+                Route::get('/', [ComptesAdministrationController::class, 'index'])->name('index');
+                Route::post('/', [ComptesAdministrationController::class, 'store'])->name('creer');
+                Route::put('{compte}', [ComptesAdministrationController::class, 'update'])->name('modifier');
+                Route::post('{compte}/fermer', [ComptesAdministrationController::class, 'fermer'])->name('fermer');
+                Route::post('{compte}/rouvrir', [ComptesAdministrationController::class, 'rouvrir'])->name('rouvrir');
+                Route::post('{compte}/mot-de-passe', [ComptesAdministrationController::class, 'reinitialiser'])
+                    ->name('mot-de-passe');
+            });
+
+            /*
+            |--------------------------------------------------------------
+            | Listes du canevas d'incident — administration nationale
+            |--------------------------------------------------------------
+            | Pas de suppression : une entrée qui ne sert plus se désactive.
+            */
+            Route::prefix('incidents-nomenclatures')->name('incidents.nomenclatures.')->group(function () {
+                Route::get('/', [NomenclaturesIncidentController::class, 'index'])->name('index');
+                Route::post('{liste}', [NomenclaturesIncidentController::class, 'store'])->name('ajouter');
+                Route::put('{liste}/{id}', [NomenclaturesIncidentController::class, 'update'])
+                    ->whereNumber('id')
+                    ->name('modifier');
             });
 
             /*

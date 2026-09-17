@@ -31,6 +31,10 @@ class RolesEtPermissionsSeeder extends Seeder
             'referentiel.consulter' => 'Consulter le référentiel territorial',
             'referentiel.importer' => 'Importer un référentiel',
             'referentiel.modifier' => 'Créer et modifier centres et sites',
+            // DÉROGATION AU CADRAGE (section 2), décidée par le client le
+            // 17/09/2026 : le référentiel territorial se corrige aussi ligne à
+            // ligne, et plus seulement par import. Droit national uniquement.
+            'referentiel.modifier_territoire' => 'Corriger le référentiel territorial et y ajouter une localité',
         ],
         'volontaires' => [
             'volontaires.consulter' => 'Consulter le registre des volontaires',
@@ -82,6 +86,7 @@ class RolesEtPermissionsSeeder extends Seeder
             'presence.corriger_feuille' => 'Corriger une feuille de présence validée',
             'presence.exporter' => 'Exporter la liste des présents en PDF et Excel',
             'ecarts.consulter' => 'Consulter les écarts de présence constatés',
+            'ecarts.traiter' => 'Marquer un écart de présence examiné ou clos, avec commentaire',
         ],
         // Cadrage v2, section 9 : trois rapports journaliers et une chaîne de
         // visas. Le droit de VISER est distinct du droit de SAISIR — c'est ce
@@ -109,6 +114,7 @@ class RolesEtPermissionsSeeder extends Seeder
             'incidents.consulter' => 'Consulter les incidents',
             'incidents.traiter' => 'Prendre en charge et traiter un incident',
             'incidents.cloturer' => 'Clôturer un incident',
+            'incidents.nomenclatures' => 'Gérer les listes du canevas d\'incident (natures, impacts, mesures, destinataires)',
         ],
         'alertes' => [
             'alertes.consulter' => 'Lire les alertes',
@@ -213,6 +219,7 @@ class RolesEtPermissionsSeeder extends Seeder
             ...$superviseur,
             'presence.corriger_feuille',
             'ecarts.consulter',
+            'ecarts.traiter',
             'rapports.cloturer',
             'referentiel.modifier',
             'vagues.consulter',
@@ -231,6 +238,8 @@ class RolesEtPermissionsSeeder extends Seeder
         $administrateur = [
             ...$chefAntenne,
             'referentiel.importer',
+            'referentiel.modifier_territoire',
+            'incidents.nomenclatures',
             'volontaires.importer',
             'volontaires.modifier',
             'volontaires.qualifier',

@@ -16,6 +16,8 @@ import { Presences } from './pages/presences/Presences';
 import { ListeFeuilles } from './pages/presences/ListeFeuilles';
 import { FicheFeuille } from './pages/presences/FicheFeuille';
 import { ArriveesDuJour } from './pages/presences/ArriveesDuJour';
+import { Ecarts } from './pages/presences/Ecarts';
+import { Appreciations } from './pages/Appreciations';
 import { Exports } from './pages/Exports';
 import { ListeKits } from './pages/kits/ListeKits';
 import { KitsNonRestitues } from './pages/kits/KitsNonRestitues';
@@ -36,6 +38,10 @@ import { FicheCentre } from './pages/referentiel/FicheCentre';
 import { ListeSites } from './pages/referentiel/ListeSites';
 import { FicheSite } from './pages/referentiel/FicheSite';
 import { ImportCentresSites } from './pages/referentiel/ImportCentresSites';
+import { Territoire } from './pages/referentiel/Territoire';
+import { ComptesAdministration } from './pages/administration/ComptesAdministration';
+import { NomenclaturesIncident } from './pages/administration/NomenclaturesIncident';
+import { Synchronisations } from './pages/administration/Synchronisations';
 import { Parametres } from './pages/Parametres';
 import { Journal } from './pages/Journal';
 
@@ -95,11 +101,12 @@ export function App() {
                 <Route path="/rapports" element={<Protege permission="rapports.consulter"><ListeRapports /></Protege>} />
                 <Route path="/rapports/a-viser" element={<Protege permission="rapports.consulter"><RapportsAViser /></Protege>} />
                 <Route path="/rapports/:id" element={<Protege permission="rapports.consulter"><FicheRapport /></Protege>} />
+                <Route path="/appreciations" element={<Protege permission="appreciations.consulter_equipe"><Appreciations /></Protege>} />
 
                 <Route
                     path="/presences"
                     element={
-                        <Protege permissions={['presence.consulter_feuille', 'presence.consulter_carte']}>
+                        <Protege permissions={['presence.consulter_feuille', 'presence.consulter_carte', 'ecarts.consulter']}>
                             <Presences />
                         </Protege>
                     }
@@ -107,6 +114,7 @@ export function App() {
                     <Route index element={<Protege permission="presence.consulter_feuille"><ListeFeuilles /></Protege>} />
                     <Route path="feuilles/:id" element={<Protege permission="presence.consulter_feuille"><FicheFeuille /></Protege>} />
                     <Route path="carte" element={<Protege permission="presence.consulter_carte"><ArriveesDuJour /></Protege>} />
+                    <Route path="ecarts" element={<Protege permission="ecarts.consulter"><Ecarts /></Protege>} />
                 </Route>
 
                 <Route path="/exports" element={<Protege permission="exports.generer"><Exports /></Protege>} />
@@ -135,6 +143,11 @@ export function App() {
                     <Route path="/sites/:id" element={<FicheSite />} />
                 </Route>
 
+                <Route path="/territoire" element={<Protege permission="referentiel.consulter"><Territoire /></Protege>} />
+
+                <Route path="/administration/comptes" element={<Protege permission="roles.attribuer"><ComptesAdministration /></Protege>} />
+                <Route path="/administration/incidents" element={<Protege permission="incidents.nomenclatures"><NomenclaturesIncident /></Protege>} />
+                <Route path="/administration/synchronisations" element={<Protege permission="journal.consulter"><Synchronisations /></Protege>} />
                 <Route path="/parametres" element={<Protege permission="parametres.consulter"><Parametres /></Protege>} />
                 <Route path="/journal" element={<Protege permission="journal.consulter"><Journal /></Protege>} />
 

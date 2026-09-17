@@ -37,6 +37,11 @@ export function Presences() {
                         Arrivées du jour
                     </NavLink>
                 )}
+                {auth.peut('ecarts.consulter') && (
+                    <NavLink to="/presences/ecarts" className={onglet}>
+                        Écarts constatés
+                    </NavLink>
+                )}
             </nav>
             <Outlet />
         </>

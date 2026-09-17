@@ -41,7 +41,7 @@ export const entrees = [
             {
                 chemin: '/presences',
                 libelle: 'Présences',
-                permissions: ['presence.consulter_feuille', 'presence.consulter_carte'],
+                permissions: ['presence.consulter_feuille', 'presence.consulter_carte', 'ecarts.consulter'],
             },
             {
                 chemin: '/rapports',
@@ -52,6 +52,11 @@ export const entrees = [
                 chemin: '/incidents',
                 libelle: 'Incidents',
                 permissions: ['incidents.consulter'],
+            },
+            {
+                chemin: '/appreciations',
+                libelle: 'Appréciations',
+                permissions: ['appreciations.consulter_equipe'],
             },
         ],
     },
@@ -92,6 +97,31 @@ export const entrees = [
                 chemin: '/centres',
                 libelle: 'Centres et sites',
                 permissions: ['referentiel.consulter'],
+            },
+            {
+                chemin: '/territoire',
+                libelle: 'Référentiel territorial',
+                permissions: ['referentiel.consulter'],
+            },
+        ],
+    },
+    {
+        titre: 'Administration',
+        liens: [
+            {
+                chemin: '/administration/comptes',
+                libelle: 'Comptes d’administration',
+                permissions: ['roles.attribuer'],
+            },
+            {
+                chemin: '/administration/incidents',
+                libelle: 'Listes des incidents',
+                permissions: ['incidents.nomenclatures'],
+            },
+            {
+                chemin: '/administration/synchronisations',
+                libelle: 'Synchronisations',
+                permissions: ['journal.consulter'],
             },
             {
                 chemin: '/parametres',

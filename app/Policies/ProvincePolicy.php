@@ -13,6 +13,11 @@ use App\Models\User;
  * import avec aperçu avant enregistrement, pas d'une édition ligne à ligne.
  * C'est pourquoi create/update/delete sont refusés ici — l'écriture passe par
  * le module d'import, qui porte ses propres contrôles.
+ *
+ * DÉROGATION (décision du client, 17/09/2026) : la correction ligne à ligne
+ * est désormais permise à l'administration nationale, par le droit
+ * referentiel.modifier_territoire, avec aperçu des effets avant enregistrement
+ * (ServiceTerritoire). La suppression reste interdite.
  */
 class ProvincePolicy extends PolitiqueDeBase
 {
@@ -33,7 +38,7 @@ class ProvincePolicy extends PolitiqueDeBase
 
     public function update(User $utilisateur, Province $province): bool
     {
-        return false;
+        return $this->autoriser($utilisateur, 'referentiel.modifier_territoire', $province);
     }
 
     public function delete(User $utilisateur, Province $province): bool

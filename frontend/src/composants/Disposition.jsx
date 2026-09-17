@@ -18,7 +18,7 @@ import { nomDe } from '../outils/format';
  * deviner ce qu'il regarde.
  *
  * Les icônes sont écrites à la main, en SVG : aucune bibliothèque à télécharger
- * pour onze pictogrammes.
+ * pour une vingtaine de pictogrammes.
  */
 const ICONES = {
     '/': ['M3 3h7v7H3z', 'M14 3h7v7h-7z', 'M3 14h7v7H3z', 'M14 14h7v7h-7z'],
@@ -44,6 +44,11 @@ const ICONES = {
     '/centres': ['M12 21s7-6.3 7-11a7 7 0 10-14 0c0 4.7 7 11 7 11z', 'M12 10a2 2 0 100-4 2 2 0 000 4z'],
     '/parametres': ['M4 7h16', 'M4 12h16', 'M4 17h16', 'M9 5v4', 'M16 10v4', 'M11 15v4'],
     '/journal': ['M12 21a9 9 0 110-18 9 9 0 010 18z', 'M12 7.5V12l3 2'],
+    '/appreciations': ['M4 5h16v11H9l-5 4z', 'M8 9h8', 'M8 12h5'],
+    '/territoire': ['M3 6l6-3 6 3 6-3v15l-6 3-6-3-6 3z', 'M9 3v15', 'M15 6v15'],
+    '/administration/comptes': ['M10 11a4 4 0 100-8 4 4 0 000 8z', 'M3 21a7 7 0 0111-5.7', 'M18 14v6', 'M15 17h6'],
+    '/administration/incidents': ['M9 6h11', 'M9 12h11', 'M9 18h11', 'M4 6h.01', 'M4 12h.01', 'M4 18h.01'],
+    '/administration/synchronisations': ['M20 11a8 8 0 00-14.9-4', 'M4 4v4h4', 'M4 13a8 8 0 0014.9 4', 'M20 20v-4h-4'],
     defaut: ['M5 5h14v14H5z'],
 };
 

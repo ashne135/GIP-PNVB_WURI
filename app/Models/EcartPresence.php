@@ -51,6 +51,16 @@ class EcartPresence extends Model
         return $this->belongsTo(Volontaire::class);
     }
 
+    public function region(): BelongsTo
+    {
+        return $this->belongsTo(Region::class);
+    }
+
+    public function examinePar(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'examine_par');
+    }
+
     public function alerte(): BelongsTo
     {
         return $this->belongsTo(Alerte::class);

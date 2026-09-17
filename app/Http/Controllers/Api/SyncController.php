@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Responses\ReponseApi;
 use App\Models\SyncLot;
 use App\Services\Comptes\ServiceAccesRattrapage;
+use App\Services\Sync\CodeRejet;
 use App\Services\Sync\RegistreSync;
 use Carbon\CarbonInterface;
 use App\Services\Sync\ServiceSynchronisation;
@@ -96,6 +97,70 @@ class SyncController extends Controller
             ->paginate(min($requete->integer('par_page', 20), 100));
 
         return ReponseApi::succes('Historique de vos synchronisations.', $lots);
+    }
+
+    /**
+     * SUPERVISION DES SYNCHRONISATIONS — pour le super administrateur (DSI).
+     *
+     * Répond à « quel téléphone n'arrive pas à envoyer, et pourquoi ? ». Réservé
+     * au droit journal.consulter : c'est un outil de diagnostic technique,
+     * national, comme le journal d'activité.
+     *
+     * CE QUI N'EST PAS RENDU : le contenu des éléments. Un rejet est décrit par
+     * son type, son code et son motif, jamais par ses données — un relevé de
+     * position refusé ne livre donc aucune coordonnée (cadrage, section 8).
+     */
+    public function supervision(Request $requete): JsonResponse
+    {
+        abort_unless($requete->user()->can('journal.consulter'), 403);
+
+        $lots = SyncLot::query()
+            ->with(['user:id,nom,prenoms,telephone', 'user.volontaire:id,user_id,matricule,categorie'])
+            ->when($requete->boolean('avec_rejets'), fn ($q) => $q->where('nb_rejetes', '>', 0))
+            ->when($requete->filled('du'), fn ($q) => $q->whereDate('recu_le', '>=', $requete->date('du')))
+            ->when($requete->filled('au'), fn ($q) => $q->whereDate('recu_le', '<=', $requete->date('au')))
+            ->when($requete->filled('recherche'), function ($q) use ($requete) {
+                $recherche = trim((string) $requete->string('recherche'));
+
+                $q->whereHas('user', fn ($u) => $u
+                    ->where('nom', 'like', "%{$recherche}%")
+                    ->orWhere('prenoms', 'like', "%{$recherche}%")
+                    ->orWhere('telephone', 'like', "%{$recherche}%")
+                    ->orWhereHas('volontaire', fn ($v) => $v->where('matricule', 'like', "%{$recherche}%")));
+            })
+            ->orderByDesc('recu_le')
+            ->orderByDesc('id')
+            ->paginate(min($requete->integer('par_page', 50), 200));
+
+        $lots->getCollection()->transform(fn (SyncLot $lot) => [
+            'id' => $lot->id,
+            'recu_le' => $lot->recu_le,
+            'nb_elements' => $lot->nb_elements,
+            'nb_acceptes' => $lot->nb_acceptes,
+            'nb_rejetes' => $lot->nb_rejetes,
+            'duree_ms' => $lot->duree_ms,
+            'user' => $lot->user ? [
+                'id' => $lot->user->id,
+                'nom' => $lot->user->nom,
+                'prenoms' => $lot->user->prenoms,
+                'telephone' => $lot->user->telephone,
+                'matricule' => $lot->user->volontaire?->matricule,
+            ] : null,
+            'rejets' => array_map(function (array $rejet) {
+                $code = CodeRejet::tryFrom((string) ($rejet['code'] ?? ''));
+
+                return [
+                    'rang' => $rejet['rang'] ?? null,
+                    'type' => $rejet['type'] ?? null,
+                    'code' => $rejet['code'] ?? null,
+                    'code_libelle' => $code?->libelle(),
+                    'motif' => $rejet['motif'] ?? null,
+                    'reessayer' => (bool) ($rejet['reessayer'] ?? false),
+                ];
+            }, $lot->detail['rejetes'] ?? []),
+        ]);
+
+        return ReponseApi::succes('Synchronisations récupérées.', $lots);
     }
 
     private function message(array $resultat): string

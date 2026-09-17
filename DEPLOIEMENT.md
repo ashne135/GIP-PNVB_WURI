@@ -282,6 +282,16 @@ MSYS_NO_PATHCONV=1 VITE_BASE=/pnvbwuri/ npm run build
 > script annoncé par la page doit répondre `200` avec un type
 > `text/javascript`, pas `text/html`.
 
+> **Quand une mise à jour ajoute des droits**, les rejouer sur le serveur après
+> le `git pull` — le seeder est idempotent et ne touche à aucune donnée :
+>
+> ```bash
+> cd ~/www/pnvb && php artisan db:seed --class=RolesEtPermissionsSeeder --force
+> ```
+>
+> Sans cela, les nouveaux écrans répondent « action non autorisée » à tout le
+> monde, y compris au super administrateur.
+
 Puis envoyer le contenu de `frontend/dist/` dans le dossier `public/` du
 serveur (SFTP ou `scp`) :
 
