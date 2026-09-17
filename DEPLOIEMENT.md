@@ -15,7 +15,22 @@ SSH et des tâches planifiées. Tout tient sur le même compte.
 |---|---|
 | PHP | **8.2 minimum** (`composer.json` exige `^8.2`) |
 | Extensions | `pdo_mysql`, `mbstring`, `openssl`, `tokenizer`, `xml`, `ctype`, `json`, `bcmath`, `fileinfo`, **`zip`**, **`gd`** |
-| Base | MySQL |
+| Base | **MariaDB 11.4** sur alwaysdata (le poste de développement, lui, tourne sous MySQL 8.4) |
+
+> **La base n'est pas la même qu'en développement, et cela se configure.**
+> Laravel 11 fournit un pilote `mariadb` distinct du pilote `mysql` : c'est lui
+> qu'il faut désigner, sinon le SQL émis vise MySQL.
+>
+> Deux points ont été vérifiés et ne posent pas de problème : la collation du
+> projet est `utf8mb4_unicode_ci`, que MariaDB connaît — contrairement au
+> `utf8mb4_0900_ai_ci` par défaut de MySQL 8 — et les quatre **colonnes
+> générées** du schéma (`cle_unicite_active`, `ecart_enregistrements`,
+> `taux_realisation`, `taux_conformite`) n'emploient que `if()`, `cast()`,
+> `coalesce()` et `round()`, toutes présentes en MariaDB.
+>
+> C'est néanmoins là qu'une incompatibilité se manifesterait en premier : si
+> `migrate` échoue, ce sera sur `create_affectations_tables` ou sur
+> `creer_rapports_trois_niveaux`.
 
 `zip` et `gd` ne sont pas facultatives : `maatwebsite/excel` produit les exports
 tableur, et `dompdf` les feuilles de présence en PDF.
@@ -72,6 +87,8 @@ APP_ENV=production
 APP_DEBUG=false
 APP_URL=https://pnvb.moncompte.alwaysdata.net
 
+# alwaysdata sert du MariaDB : ce pilote n'est PAS « mysql ».
+DB_CONNECTION=mariadb
 DB_HOST=mysql-moncompte.alwaysdata.net
 DB_PORT=3306
 DB_DATABASE=moncompte_pnvb
