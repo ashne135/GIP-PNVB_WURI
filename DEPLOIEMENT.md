@@ -25,12 +25,15 @@ SSH et des tâches planifiées. Tout tient sur le même compte.
 > | `add \`batch_uuid\` uuid null` → erreur 1064 : le pilote `mariadb` de Laravel écrit un type `uuid` **natif** | **10.7** |
 > | `\`effectue_le\` timestamp not null` → erreur 1067 : sans `explicit_defaults_for_timestamp`, le moteur pose une date zéro que le mode strict refuse | **10.10** (le réglage y devient ON par défaut ; il est en lecture seule, donc non corrigeable après coup) |
 >
-> Le 11.4 d'alwaysdata couvre les deux. **Précision sur ce qui est vérifié et
-> ce qui ne l'est pas :** l'échec sous 10.4 est constaté ; le succès sous 11.4
-> est déduit de l'historique des versions de MariaDB, faute d'un 11.4 sous la
-> main. Si `migrate` achoppait malgré tout sur l'un de ces deux points, le
-> repli est `DB_CONNECTION=mysql`, dont la grammaire écrit `char(36)` et reste
-> acceptée par toutes les versions.
+> Le 11.4 d'alwaysdata couvre les deux — **et c'est désormais vérifié** : les
+> 29 migrations sont passées sur **MariaDB 11.4.13** lors du déploiement réel,
+> y compris `add_batch_uuid_column_to_activity_log_table` et
+> `create_kit_mouvements_et_remplacements_tables`, les deux qui échouent en
+> 10.4. Le succès avait d'abord été déduit de l'historique des versions ; il est
+> maintenant constaté.
+>
+> Sur un hébergeur plus ancien, le repli reste `DB_CONNECTION=mysql`, dont la
+> grammaire écrit `char(36)` et reste acceptée par toutes les versions.
 >
 > **Ce qui est vérifié, en revanche :** les quatre **colonnes générées** du
 > schéma fonctionnent sur MariaDB, syntaxe et résultats compris.
