@@ -1,25 +1,20 @@
+# Options posées SANS condition : le -MultiViews livré par Laravel est enfermé
+# dans <IfModule mod_negotiation.c> et peut ne jamais s'appliquer.
+Options -MultiViews -Indexes
+
 # LE BACK-OFFICE EST UNE APPLICATION À PAGE UNIQUE : sa page est index.html,
 # déposé ici à côté du point d'entrée de Laravel.
 #
-# Laravel ne déclare aucun index par défaut. Sur un serveur qui ne connaît que
-# « index.php » — le cas d'alwaysdata — la racine du site renvoie alors 403,
-# alors que l'API répond normalement : symptôme déroutant, puisque tout le
-# reste fonctionne. Constaté en déploiement réel.
-#
-# index.html EN PREMIER, pour que la racine serve le back-office. Tout ce qui
-# n'est pas un fichier réel reste réécrit plus bas vers index.php, donc vers
-# Laravel : les adresses d'API et les routes internes ne sont pas touchées.
-#
-# Hors du bloc mod_rewrite à dessein : DirectoryIndex relève de mod_dir.
+# Laravel ne déclare aucun index : sur un serveur qui ne connaît que
+# « index.php », la racine du site renvoyait 403. Mais un DirectoryIndex GLOBAL
+# ferait servir index.html comme index de tout répertoire, y compris sur les
+# adresses d'API — du HTML en 200 là où le téléphone attend du JSON. On le
+# désactive donc, et la racine est traitée par une règle explicite plus bas.
 <IfModule mod_dir.c>
-    DirectoryIndex index.html index.php
+    DirectoryIndex disabled
 </IfModule>
 
 <IfModule mod_rewrite.c>
-    <IfModule mod_negotiation.c>
-        Options -MultiViews -Indexes
-    </IfModule>
-
     RewriteEngine On
 
     # Handle Authorization Header
@@ -29,6 +24,15 @@
     # Handle X-XSRF-Token Header
     RewriteCond %{HTTP:x-xsrf-token} .
     RewriteRule .* - [E=HTTP_X_XSRF_TOKEN:%{HTTP:X-XSRF-Token}]
+
+    # LA RACINE SERT LE BACK-OFFICE.
+    #
+    # Placée ICI, avant la règle de Laravel et dans le MÊME bloc. Un second
+    # bloc « RewriteEngine On » en fin de fichier s'exécuterait dans une passe
+    # ultérieure, reprendrait la main après la réécriture vers index.php et
+    # servirait index.html jusque sur les adresses d'API. Constaté en
+    # déploiement réel : c'est exactement ce qui s'est produit.
+    RewriteRule ^$ index.html [L]
 
     # Redirect Trailing Slashes If Not A Folder...
     RewriteCond %{REQUEST_FILENAME} !-d

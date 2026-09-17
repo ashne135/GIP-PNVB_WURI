@@ -341,7 +341,10 @@ produire de 404**.
 | Écran de connexion sans réponse | `APP_URL` ne correspond pas à l'adresse réelle |
 | Erreur de base au premier appel | Hôte MySQL : sur alwaysdata c'est `mysql-moncompte.alwaysdata.net`, pas `127.0.0.1` |
 
-### Les deux pièges rencontrés en conditions réelles
+### Les pièges rencontrés en conditions réelles
+
+Chacun a été mesuré sur le serveur avant d'être corrigé. Ils sont listés dans
+l'ordre où ils se présentent : réparer l'un révèle souvent le suivant.
 
 **1. `git clone` produit des fichiers qu'Apache ne peut pas lire.**
 
@@ -362,19 +365,86 @@ N'ouvrez **pas** en bloc avec un `chmod -R o+rX` sur tout le projet : sur un
 hébergement mutualisé, cela rendrait votre `.env` — donc le mot de passe de la
 base — lisible par les autres comptes du serveur.
 
-**2. Laravel ne déclare aucun index par défaut.**
+**2. Laravel ne déclare aucun index — et la correction évidente est fausse.**
 
-`public/.htaccess` ne contient pas de `DirectoryIndex`. Si le serveur ne
-connaît que `index.php`, la racine du site renvoie **403** alors que l'API
-répond normalement — symptôme déroutant, puisque tout le reste fonctionne. La
-ligne est désormais dans le dépôt :
+Sans `DirectoryIndex`, la racine du site renvoie **403**. Le réflexe consiste à
+ajouter `DirectoryIndex index.html index.php` : **ne le faites pas**. Cette
+directive fait servir `index.html` comme index de *tout* répertoire, y compris
+sur les adresses d'API — qui répondent alors du **HTML en 200** au lieu de JSON.
+Le back-office paraît sain ; le téléphone, lui, échoue sans explication.
+
+La version du dépôt désactive l'index global et sert la racine par une règle
+explicite, placée **dans le même bloc** que celle de Laravel et **avant** elle :
 
 ```apache
-DirectoryIndex index.html index.php
+<IfModule mod_dir.c>
+    DirectoryIndex disabled
+</IfModule>
+…
+    RewriteRule ^$ index.html [L]
 ```
 
-`index.html` en premier pour que la racine serve le back-office ; tout ce qui
-n'est pas un fichier réel reste réécrit vers `index.php`, donc vers Laravel.
+Un second bloc `RewriteEngine On` ajouté en fin de fichier produit la même
+panne : il s'exécute dans une passe ultérieure et reprend la main après la
+réécriture vers `index.php`.
+
+> **Leçon de méthode.** Ce fichier a été corrigé trois fois de suite sans être
+> relu en entier, et la deuxième correction annulait la première. En cas de
+> doute, relisez le `.htaccess` complet avant d'y ajouter quoi que ce soit.
+
+**3. Les sessions en base font échouer toutes les requêtes avant migration.**
+
+`.env.example` porte `SESSION_DRIVER=database` et `CACHE_STORE=database`.
+Chaque requête — même une 404 — ouvre alors une session en base : tant que les
+identifiants sont faux ou les tables absentes, **tout** répond 500. Le journal
+le montre sans ambiguïté :
+
+```
+select * from `sessions` where `id` = …
+```
+
+Cette API s'authentifie par jetons Sanctum ; les sessions n'y servent
+quasiment pas. En production :
+
+```dotenv
+SESSION_DRIVER=file
+CACHE_STORE=file
+```
+
+**4. alwaysdata ne transmet pas le sous-chemin à PHP.**
+
+C'est le plus sournois. Mesuré sur une vraie requête :
+
+```
+REQUEST_URI : /pnvbwuri/api/v1/alertes
+SCRIPT_NAME : /pnvb/public/index.php      ← chemin DISQUE, pas l'adresse publique
+```
+
+Symfony ne trouve aucun préfixe commun entre les deux, conserve `pnvbwuri/`
+dans le chemin, et **aucune route d'API ne correspond plus**. La route de repli
+sert alors la page du back-office — toujours en 200, toujours en HTML.
+
+`public/index.php` retire désormais ce préfixe avant que Laravel ne lise
+l'URL. Il suffit de le déclarer :
+
+```dotenv
+APP_PREFIXE_URL=/pnvbwuri
+```
+
+La variable est vide par défaut : en développement et sur un hébergement
+classique, rien ne change.
+
+**Comment savoir si tout est rentré dans l'ordre** — les quatre adresses doivent
+se comporter *différemment* :
+
+| Adresse | Réponse attendue |
+|---|---|
+| `/pnvbwuri/` | 200, HTML — le back-office |
+| `/pnvbwuri/equipes` | 200, HTML — une page interne rechargée |
+| `/pnvbwuri/api/v1/alertes` | 401 JSON, ou 500 tant que la base n'est pas jointe |
+| `/pnvbwuri/api/v1/inexistant` | 404 |
+
+Si elles répondent toutes pareil, un des pièges ci-dessus est encore actif.
 
 Après toute modification du `.env` :
 
