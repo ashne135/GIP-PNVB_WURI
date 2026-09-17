@@ -234,6 +234,24 @@ npm run build
 VITE_BASE=/pnvbwuri/ npm run build
 ```
 
+Sous **Windows**, ne pas lancer cette ligne dans **Git Bash** telle quelle :
+Git Bash prend `/pnvbwuri/` pour un chemin de fichier et le réécrit en
+`C:/Program Files/Git/pnvbwuri/` avant de le passer à Node. La compilation
+réussit, mais le navigateur réclame alors
+`/Program%20Files/Git/pnvbwuri/assets/…` et reçoit la page HTML à la place du
+script (« Expected a JavaScript-or-Wasm module script… MIME type text/html »).
+Utiliser PowerShell, ou désactiver la conversion :
+
+```powershell
+# PowerShell
+$env:VITE_BASE = '/pnvbwuri/'; npm run build; Remove-Item Env:VITE_BASE
+```
+
+```bash
+# Git Bash
+MSYS_NO_PATHCONV=1 VITE_BASE=/pnvbwuri/ npm run build
+```
+
 > **Le chemin de base n'est pas optionnel, et il gouverne TROIS choses.**
 > Vite inscrit les liens vers ses fichiers *à la compilation*. Compilé pour la
 > racine puis servi sous `/pnvbwuri`, le back-office cherche ses scripts à la
@@ -254,8 +272,15 @@ VITE_BASE=/pnvbwuri/ npm run build
 > la seule panne de cette procédure qui ne ressemble pas à une panne.
 >
 > Pour vérifier avant d'envoyer : `dist/index.html` doit contenir
-> `src="/pnvbwuri/assets/…"`. S'il contient `src="/assets/…"`, la compilation
-> est à refaire. La barre oblique finale de `VITE_BASE` est obligatoire.
+> **exactement** `src="/pnvbwuri/assets/…"` — guillemet et barre oblique
+> compris. S'il contient `src="/assets/…"` ou `src="/Program Files/…"`, la
+> compilation est à refaire. Chercher seulement `pnvbwuri/assets` ne suffit
+> pas : ce motif figure aussi dans l'adresse réécrite par Git Bash. La barre
+> oblique finale de `VITE_BASE` est obligatoire.
+>
+> Après l'envoi, la vérification qui compte est celle du navigateur : chaque
+> script annoncé par la page doit répondre `200` avec un type
+> `text/javascript`, pas `text/html`.
 
 Puis envoyer le contenu de `frontend/dist/` dans le dossier `public/` du
 serveur (SFTP ou `scp`) :
