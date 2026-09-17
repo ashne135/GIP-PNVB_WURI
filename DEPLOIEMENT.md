@@ -1,0 +1,227 @@
+# Déploiement sur alwaysdata
+
+Procédure pour mettre la plateforme en ligne sur un compte alwaysdata, en vue
+d'une démonstration. Elle suppose un accès SSH et le panneau d'administration
+`admin.alwaysdata.com`.
+
+**Pas besoin d'un second hébergeur gratuit :** alwaysdata fournit PHP, MySQL,
+SSH et des tâches planifiées. Tout tient sur le même compte.
+
+---
+
+## 0. Ce qu'il faut avant de commencer
+
+| Élément | Valeur |
+|---|---|
+| PHP | **8.2 minimum** (`composer.json` exige `^8.2`) |
+| Extensions | `pdo_mysql`, `mbstring`, `openssl`, `tokenizer`, `xml`, `ctype`, `json`, `bcmath`, `fileinfo`, **`zip`**, **`gd`** |
+| Base | MySQL |
+
+`zip` et `gd` ne sont pas facultatives : `maatwebsite/excel` produit les exports
+tableur, et `dompdf` les feuilles de présence en PDF.
+
+> **L'espace est la vraie contrainte.** 1 Go doit contenir l'application, la
+> base **et les photos déposées par les agents** (incidents, mouvements de
+> kits). C'est ce dernier poste qui saturera en premier : une centaine de
+> photos à 200 Ko suffit à consommer 20 Mo. Pour une démonstration, prévoir de
+> purger `storage/app` entre deux séances.
+
+---
+
+## 1. La base de données
+
+Dans le panneau : **Bases de données → MySQL → Ajouter**.
+
+Noter le nom (souvent préfixé par le compte, par exemple `moncompte_pnvb`),
+l'utilisateur et le mot de passe : ils iront dans le `.env`.
+
+---
+
+## 2. Le code
+
+```bash
+ssh moncompte@ssh-moncompte.alwaysdata.net
+cd ~/www
+git clone https://github.com/ashne135/GIP-PNVB_WURI.git pnvb
+cd pnvb
+```
+
+---
+
+## 3. Les dépendances
+
+```bash
+composer install --no-dev --optimize-autoloader
+```
+
+`--no-dev` est important : il écarte Pest, Faker et les outils de
+développement, qui n'ont rien à faire en production et pèsent pour rien.
+
+---
+
+## 4. La configuration
+
+```bash
+cp .env.example .env
+```
+
+Puis éditer `.env`. **Les lignes à changer impérativement :**
+
+```dotenv
+APP_ENV=production
+APP_DEBUG=false
+APP_URL=https://pnvb.moncompte.alwaysdata.net
+
+DB_HOST=mysql-moncompte.alwaysdata.net
+DB_PORT=3306
+DB_DATABASE=moncompte_pnvb
+DB_USERNAME=moncompte_pnvb
+DB_PASSWORD=le-mot-de-passe-choisi
+
+# Pour une démonstration : pas de processus de file d'attente à maintenir.
+QUEUE_CONNECTION=sync
+
+# Aucun SMS réel n'est envoyé tant que ce réglage vaut « log ».
+PNVB_SMS_PILOTE=log
+
+# Le back-office et l'API partagent le même domaine : laisser vide.
+CORS_ORIGINES=
+```
+
+`APP_DEBUG=false` n'est pas cosmétique : à `true`, la moindre erreur afficherait
+la configuration de la base au visiteur.
+
+**Le fichier `.env` n'est jamais versionné.** Il se crée sur le serveur, à la
+main.
+
+---
+
+## 5. Clé, schéma et données de base
+
+```bash
+php artisan key:generate
+php artisan migrate --force
+php artisan db:seed --class=Database\\Seeders\\RolesEtPermissionsSeeder
+php artisan db:seed --class=Database\\Seeders\\ParametresSeeder
+php artisan storage:link
+```
+
+`--force` est requis : Laravel refuse de migrer en production sans
+confirmation explicite.
+
+Les deux seeders sont **idempotents** : les rejouer après une mise à jour
+ajoute les nouveaux rôles, permissions et paramètres sans toucher aux données.
+
+Il reste ensuite à créer le premier compte administrateur (import du
+référentiel, ou création manuelle via `php artisan tinker`).
+
+---
+
+## 6. Le back-office
+
+Il se construit **sur votre machine**, pas sur le serveur : alwaysdata n'a pas
+besoin de Node, et la compilation consommerait de l'espace pour rien.
+
+```bash
+# En local
+cd frontend
+npm run build
+```
+
+Puis envoyer le contenu de `frontend/dist/` dans le dossier `public/` du
+serveur (SFTP ou `scp`) :
+
+```bash
+scp -r frontend/dist/* moncompte@ssh-moncompte.alwaysdata.net:~/www/pnvb/public/
+```
+
+Le fichier `index.html` se retrouve ainsi à la racine servie, et la route
+« attrape‑tout » de `routes/web.php` prend en charge les adresses internes
+(`/equipes`, `/journal`…) quand la page est rechargée.
+
+---
+
+## 7. Le site dans le panneau alwaysdata
+
+**Sites → Ajouter un site :**
+
+| Champ | Valeur |
+|---|---|
+| Adresse | `pnvb.moncompte.alwaysdata.net` (ou votre domaine) |
+| Type | PHP |
+| Répertoire racine | `/www/pnvb/public` |
+| Version de PHP | 8.2 ou 8.3 |
+
+Le répertoire racine pointe sur **`public/`**, jamais sur la racine du projet :
+sinon `.env`, `vendor/` et le code source deviendraient téléchargeables.
+
+---
+
+## 8. Les tâches planifiées
+
+Six traitements tournent automatiquement (escalade des incidents, purge des
+relevés de position, rapprochement des présences, recalcul des accès, agrégats,
+exports). Ils dépendent tous d'un seul appel.
+
+**Tâches planifiées → Ajouter :**
+
+```
+Commande : cd ~/www/pnvb && php artisan schedule:run
+Fréquence : toutes les minutes
+```
+
+Sans cette tâche, les alertes d'escalade ne partent pas et les exports
+quotidiens ne sont jamais produits.
+
+---
+
+## 9. L'application mobile
+
+L'adresse de l'API **n'est pas écrite en dur** : elle est fixée à la
+compilation (`mobile/lib/configuration.dart`). Sans la passer, l'APK garde sa
+valeur par défaut `http://10.0.2.2:8000/api/v1` — le poste de développement vu
+depuis un émulateur — et ne trouvera jamais le serveur.
+
+```bash
+cd mobile
+flutter build apk --debug \
+  --dart-define=URL_API=https://pnvb.moncompte.alwaysdata.net/api/v1
+```
+
+Le suffixe `/api/v1` fait partie de l'adresse : l'omettre donnerait des 404 sur
+chaque appel.
+
+L'APK se trouve ensuite dans `mobile/build/app/outputs/flutter-apk/`.
+
+Pour une remise en main propre, la version `--debug` suffit et s'installe sans
+signature. Une version `--release` exige une clé de signature Android, qui
+n'est pas configurée dans ce dépôt.
+
+---
+
+## 10. Vérifier que tout répond
+
+```bash
+curl -i https://pnvb.moncompte.alwaysdata.net/api/v1/sante
+```
+
+Puis, dans un navigateur, ouvrir l'adresse du site : l'écran de connexion du
+back-office doit s'afficher, et **recharger une page interne ne doit pas
+produire de 404**.
+
+---
+
+## En cas de page blanche
+
+| Symptôme | Cause la plus fréquente |
+|---|---|
+| Erreur 500 sans détail | `APP_KEY` absente — relancer `php artisan key:generate` |
+| 404 sur toutes les pages sauf l'accueil | Répertoire racine mal placé, ou `dist/` non copié dans `public/` |
+| Écran de connexion sans réponse | `APP_URL` ne correspond pas à l'adresse réelle |
+| Erreur de base au premier appel | Hôte MySQL : sur alwaysdata c'est `mysql-moncompte.alwaysdata.net`, pas `127.0.0.1` |
+
+Après toute modification du `.env` :
+
+```bash
+php artisan config:clear
+```
