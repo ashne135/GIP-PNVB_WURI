@@ -338,9 +338,44 @@ injoignable », sans pouvoir dire pourquoi.
 
 L'APK se trouve ensuite dans `mobile/build/app/outputs/flutter-apk/`.
 
-Pour une remise en main propre, la version `--debug` suffit et s'installe sans
-signature. Une version `--release` exige une clé de signature Android, qui
-n'est pas configurée dans ce dépôt.
+### Pour partager l'application : la version de production
+
+La version `--debug` pèse **environ 205 Mo** : elle embarque toutes les
+architectures et les outils de débogage. Pour la distribuer, préférez :
+
+```bash
+flutter build apk --release --target-platform android-arm,android-arm64 \
+  --dart-define=URL_API=https://moncompte.alwaysdata.net/pnvbwuri/api/v1
+```
+
+Le résultat se trouve dans `build/app/outputs/flutter-apk/app-release.apk` et
+pèse **environ 52 Mo** — quatre fois moins que la version de débogage, pour le
+même usage. Mesuré lors du déploiement réel ; les avertissements
+`source value 8 is obsolete` affichés pendant la compilation viennent d'un
+module tiers et sont sans conséquence.
+
+- **`android-arm` et `android-arm64` ensemble** : le premier couvre les téléphones
+  32 bits, le second les 64 bits — et certains appareils récents n'exécutent
+  plus du tout d'applications 32 bits. L'architecture x86 des émulateurs est
+  laissée de côté.
+- **Aucune clé à créer pour commencer** : `android/app/build.gradle.kts` signe la
+  version de production avec la clé de débogage du poste. *(Une version
+  antérieure de ce guide affirmait le contraire ; c'était faux.)*
+
+**Deux limites de cette signature provisoire :**
+
+1. La clé de débogage est **propre à l'ordinateur** (`~/.android/debug.keystore`).
+   Un téléphone n'accepte une mise à jour que si elle est signée de la même
+   clé : les versions suivantes doivent donc être compilées **sur le même
+   poste**, sans quoi il faudra désinstaller puis réinstaller — et perdre les
+   données non encore envoyées.
+2. **Le Play Store la refuse.** Une publication exige une vraie clé de
+   signature, à créer et à conserver précieusement : la perdre interdit toute
+   mise à jour ultérieure.
+
+Sur chaque téléphone, autoriser l'installation hors Play Store :
+*Paramètres → Sécurité → Installer des applications inconnues*, pour
+l'application qui ouvre le fichier (WhatsApp, gestionnaire de fichiers…).
 
 ### Alléger l'APK pour les téléphones 32 bits
 
