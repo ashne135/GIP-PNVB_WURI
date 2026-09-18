@@ -7,6 +7,7 @@ import { Bloc } from '../../composants/Fiche';
 import { Pagination, Pastille, Tableau } from '../../composants/Tableau';
 import { BarreFiltres, FiltreListe, FiltreTexte } from '../../composants/Filtres';
 import { Bouton, Champ, Liste, Saisie } from '../../composants/Champs';
+import { BarreSuppression } from '../../composants/Suppression';
 import { Chargement } from '../../composants/Chargement';
 import { Echec, Succes, Vide } from '../../composants/Etats';
 import { date, humaniser, nombre, nomDe } from '../../outils/format';
@@ -34,11 +35,16 @@ import {
  * RETIRER n'efface rien : la fiche sort des listes et des tirages, son accès se
  * ferme, ses feuilles de présence et ses rapports restent. Le geste se défait.
  *
+ * SUPPRIMER, lui, efface la fiche et son compte, et ne se défait pas. Il n'est
+ * là que pour le jeu d'essai, derrière un droit à part, et le serveur le refuse
+ * dès qu'une donnée de terrain dépend de la fiche.
+ *
  * Le périmètre est appliqué côté serveur : un chef d'antenne voit sa région.
  */
 export function Registre() {
     const auth = useAuth();
     const peutModifier = auth.peut('volontaires.modifier');
+    const peutSupprimer = auth.peut('donnees.supprimer');
     const liste = useListe('volontaires', '/volontaires');
     const [fiche, setFiche] = useState(null);
     const [retrait, setRetrait] = useState(null);
@@ -133,6 +139,27 @@ export function Registre() {
                     </Bouton>
                     <Bouton variante="secondaire" onClick={() => setChoisis(new Map())}>Tout décocher</Bouton>
                 </div>
+            )}
+
+            {/*
+              * DEUX GESTES, ET ILS NE FONT PAS LA MÊME CHOSE.
+              *
+              * RETIRER sort la fiche des listes et des tirages, avec un motif :
+              * elle existe toujours, et son histoire avec elle. C'est le geste
+              * de la vie courante.
+              *
+              * SUPPRIMER l'efface, elle et son compte. C'est pour le jeu
+              * d'essai, et le serveur le refuse dès qu'une donnée de terrain en
+              * dépend. Le droit est à part : tout le monde ne le voit pas.
+              */}
+            {peutSupprimer && (
+                <BarreSuppression
+                    famille="volontaire"
+                    nom="fiche"
+                    selection={{ choisis, vider: () => setChoisis(new Map()) }}
+                    nommer={(v) => v.matricule}
+                    aRafraichir={['volontaires', 'volontaires-a-qualifier', 'remises']}
+                />
             )}
 
             {liste.isPending && <Chargement message="Chargement du registre…" />}

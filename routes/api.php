@@ -24,6 +24,7 @@ use App\Http\Controllers\Api\ReferentielController;
 use App\Http\Controllers\Api\RemiseIdentifiantsController;
 use App\Http\Controllers\Api\RemplacementsController;
 use App\Http\Controllers\Api\SitesController;
+use App\Http\Controllers\Api\SuppressionsController;
 use App\Http\Controllers\Api\SyncController;
 use App\Http\Controllers\Api\TableauBordController;
 use App\Http\Controllers\Api\TerritoireController;
@@ -102,9 +103,14 @@ Route::prefix('v1')->name('api.')->group(function () {
                 });
 
                 /*
-                 * Centres et sites : consultation et gestion. Pas de suppression —
-                 * un centre porte l'historique des rapports, des présences et des
-                 * affectations. Il se ferme, il ne disparaît pas.
+                 * Centres et sites : consultation et gestion. Le geste normal
+                 * reste la FERMETURE — un centre porte l'historique des rapports,
+                 * des présences et des affectations, il ne disparaît pas.
+                 *
+                 * La suppression définitive existe depuis le 18/09/2026, mais
+                 * ailleurs (POST suppressions), derrière son propre droit, et
+                 * refusée dès qu'une donnée qui fait foi en dépend. Elle sert au
+                 * jeu d'essai, pas à la gestion courante.
                  */
                 Route::get('centres', [CentresController::class, 'index'])->name('centres');
                 Route::post('centres', [CentresController::class, 'store'])->name('centres.creer');
@@ -150,6 +156,11 @@ Route::prefix('v1')->name('api.')->group(function () {
             */
             Route::post('volontaires/retrait-en-lot', [VolontairesController::class, 'retirerEnLot'])
                 ->name('volontaires.retrait-en-lot');
+
+            // SUPPRIMER POUR DE BON : un seul point d'entrée pour les quatre
+            // familles, protégé par son propre droit. Voir le contrôleur.
+            Route::post('suppressions', [SuppressionsController::class, 'supprimer'])
+                ->name('suppressions.supprimer');
             Route::get('volontaires/{volontaire}', [VolontairesController::class, 'show'])
                 ->whereNumber('volontaire')->name('volontaires.voir');
             Route::put('volontaires/{volontaire}', [VolontairesController::class, 'update'])

@@ -13,6 +13,7 @@ import { Chargement } from '../../composants/Chargement';
 import { Echec, Succes, Vide } from '../../composants/Etats';
 import { nombre, nomDe } from '../../outils/format';
 import { etatKit, etatsKit } from '../../domaine/kits';
+import { BarreSuppression, colonneChoix, useSelection } from '../../composants/Suppression';
 
 /**
  * LE PARC DE KITS.
@@ -25,6 +26,8 @@ export function ListeKits() {
     const auth = useAuth();
     const liste = useListe('kits', '/kits');
     const synthese = useQuery({ queryKey: ['kits-synthese'], queryFn: () => api.lire('/kits/synthese') });
+    const selection = useSelection(liste.lignes);
+    const peutSupprimer = auth.peut('donnees.supprimer');
 
     return (
         <>
@@ -88,6 +91,7 @@ export function ListeKits() {
                         lignes={liste.lignes}
                         vide={<Vide titre="Aucun kit ne correspond" explication="Aucun kit de votre périmètre ne répond à ces filtres." />}
                         colonnes={[
+                            ...(peutSupprimer ? [colonneChoix(selection, (k) => k.reference)] : []),
                             {
                                 cle: 'reference',
                                 titre: 'Référence',
@@ -123,6 +127,16 @@ export function ListeKits() {
                         ]}
                     />
                     <Pagination page={liste.pagination} onPage={liste.setPage} />
+
+                    {peutSupprimer && (
+                        <BarreSuppression
+                            famille="kit"
+                            nom="kit"
+                            selection={selection}
+                            nommer={(k) => k.reference}
+                            aRafraichir={['kits', 'kits-synthese']}
+                        />
+                    )}
                 </>
             )}
         </>

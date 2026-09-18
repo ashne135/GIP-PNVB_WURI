@@ -8,6 +8,7 @@ import { Pagination, Pastille, Tableau } from '../../composants/Tableau';
 import { BarreFiltres, FiltreListe, FiltreTexte } from '../../composants/Filtres';
 import { Bloc } from '../../composants/Fiche';
 import { Bouton, Champ, Liste, Saisie } from '../../composants/Champs';
+import { BarreSuppression, colonneChoix, useSelection } from '../../composants/Suppression';
 import { Chargement } from '../../composants/Chargement';
 import { Echec, Succes, Vide } from '../../composants/Etats';
 import { nombre } from '../../outils/format';
@@ -24,6 +25,8 @@ export function useRegions() {
 export function ListeCentres() {
     const auth = useAuth();
     const liste = useListe('centres', '/referentiel/centres');
+    const selection = useSelection(liste.lignes);
+    const peutSupprimer = auth.peut('donnees.supprimer');
     const regions = useRegions();
 
     return (
@@ -62,6 +65,7 @@ export function ListeCentres() {
                         lignes={liste.lignes}
                         vide={<Vide titre="Aucun centre ne correspond" explication="Aucun centre de votre périmètre ne répond à ces filtres." />}
                         colonnes={[
+                            ...(peutSupprimer ? [colonneChoix(selection, (c) => c.code)] : []),
                             {
                                 cle: 'code',
                                 titre: 'Code',
@@ -91,6 +95,21 @@ export function ListeCentres() {
                         ]}
                     />
                     <Pagination page={liste.pagination} onPage={liste.setPage} />
+
+                    {/*
+                      * Effacer un centre emporte SES SITES : c'est annoncé dans
+                      * la confirmation, et refusé si l'un d'eux porte une donnée
+                      * qui fait foi.
+                      */}
+                    {peutSupprimer && (
+                        <BarreSuppression
+                            famille="centre"
+                            nom="centre"
+                            selection={selection}
+                            nommer={(c) => c.code}
+                            aRafraichir={['centres', 'sites', 'cartographie-sites', 'tableau-bord-sites-carte']}
+                        />
+                    )}
                 </>
             )}
         </>

@@ -40,6 +40,7 @@ class RolesEtPermissionsSeeder extends Seeder
             'volontaires.consulter' => 'Consulter le registre des volontaires',
             'volontaires.importer' => 'Importer les retenus et les réservistes',
             'volontaires.modifier' => 'Modifier une fiche de volontaire',
+            'donnees.supprimer' => 'Supprimer définitivement des fiches d\'essai (volontaire, centre, site, kit)',
             'volontaires.qualifier' => 'Attribuer un profil aux fiches importées sans profil',
         ],
         'comptes' => [
@@ -254,6 +255,10 @@ class RolesEtPermissionsSeeder extends Seeder
             'remplacements.consulter',
             'remplacements.decider',
             'parametres.consulter',
+            // EFFACER POUR DE BON n'appartient qu'à ce niveau : c'est le geste
+            // qui ne se rattrape pas. Le chef d'antenne ferme un centre et
+            // retire une fiche — deux gestes réversibles, qui gardent la trace.
+            'donnees.supprimer',
         ];
 
         // Acteur 7 : observateur. LECTURE SEULE STRICTE.

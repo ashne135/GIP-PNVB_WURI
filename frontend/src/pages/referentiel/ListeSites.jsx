@@ -9,6 +9,8 @@ import { Echec, Vide } from '../../composants/Etats';
 import { humaniser, nombre } from '../../outils/format';
 import { statut, statutsSite } from '../../domaine/referentiel';
 import { useRegions } from './ListeCentres';
+import { useAuth } from '../../auth/ContexteAuth';
+import { BarreSuppression, colonneChoix, useSelection } from '../../composants/Suppression';
 
 /**
  * LES SITES.
@@ -23,6 +25,9 @@ import { useRegions } from './ListeCentres';
  */
 export function ListeSites() {
     const liste = useListe('sites', '/referentiel/sites');
+    const auth = useAuth();
+    const selection = useSelection(liste.lignes);
+    const peutSupprimer = auth.peut('donnees.supprimer');
     const regions = useRegions();
 
     const communes = useQuery({
@@ -77,6 +82,7 @@ export function ListeSites() {
                         lignes={liste.lignes}
                         vide={<Vide titre="Aucun site ne correspond" explication="Aucun site de votre périmètre ne répond à ces filtres." />}
                         colonnes={[
+                            ...(peutSupprimer ? [colonneChoix(selection, (s) => s.code)] : []),
                             {
                                 cle: 'code',
                                 titre: 'Code',
@@ -108,6 +114,16 @@ export function ListeSites() {
                         ]}
                     />
                     <Pagination page={liste.pagination} onPage={liste.setPage} />
+
+                    {peutSupprimer && (
+                        <BarreSuppression
+                            famille="site"
+                            nom="site"
+                            selection={selection}
+                            nommer={(s) => s.code}
+                            aRafraichir={['sites', 'centres', 'cartographie-sites', 'tableau-bord-sites-carte']}
+                        />
+                    )}
                 </>
             )}
         </>
