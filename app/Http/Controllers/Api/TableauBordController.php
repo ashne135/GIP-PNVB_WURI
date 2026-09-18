@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Enums\NiveauPerimetre;
 use App\Http\Controllers\Controller;
 use App\Http\Responses\ReponseApi;
 use App\Services\Agregats\ServiceTableauBord;
@@ -120,7 +121,31 @@ class TableauBordController extends Controller
     {
         $this->autoriser($requete);
 
-        $donnees = $this->service->sitesCarte($requete->user());
+        $valide = $requete->validate([
+            'region_id' => ['nullable', 'integer', 'exists:regions,id'],
+        ]);
+
+        $regionChoisie = isset($valide['region_id']) ? (int) $valide['region_id'] : null;
+
+        /*
+         * LE PÉRIMÈTRE SE REFUSE, IL NE SE FILTRE PAS EN SILENCE.
+         *
+         * Un chef d'antenne qui demande une autre région reçoit un refus, et non
+         * une carte vide qu'il lirait comme « cette région n'a aucun site ».
+         */
+        $utilisateur = $requete->user();
+        $national = $utilisateur->niveauPerimetre() === NiveauPerimetre::National;
+        $sienne = $utilisateur->idRegionAccessible();
+
+        // Un agent national peut porter une région d'attache sans y être
+        // confiné : c'est son NIVEAU qui décide, jamais sa colonne region_id.
+        abort_if(
+            ! $national && $regionChoisie !== null && $regionChoisie !== $sienne,
+            403,
+            'Cette région est hors de votre périmètre.'
+        );
+
+        $donnees = $this->service->sitesCarte($requete->user(), $regionChoisie);
 
         return ReponseApi::succes(
             $donnees['localises'] === 0

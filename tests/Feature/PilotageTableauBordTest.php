@@ -167,3 +167,85 @@ it('reste fermé à qui n\'a pas le droit du tableau de bord', function () {
 
     $this->getJson('/api/v1/tableau-bord/pilotage')->assertForbidden();
 });
+
+/**
+ * LA CARTOGRAPHIE : tous les sites, ou ceux d'une région.
+ *
+ * Ce qu'on protège :
+ *   - le filtre par région ne restreint que les MARQUEURS ; la répartition par
+ *     région reste entière, sinon l'écran perdrait le moyen d'en choisir une autre ;
+ *   - les trois nombres d'une région — sites, placés, ayant enregistré — ne se
+ *     déduisent pas l'un de l'autre, et un site sans coordonnées se compte
+ *     quand même ;
+ *   - une région hors périmètre est REFUSÉE, pas rendue vide : une carte vide se
+ *     lirait « aucun site ici ».
+ */
+it('rend les sites de toutes les régions, puis ceux d\'une seule', function () {
+    $centreNando = centrePil($this->nando);
+
+    // Le nom d'une localité est unique dans sa commune : le rang le distingue.
+    $localite = fn (Centre $centre, int $rang) => \App\Models\Localite::query()->create([
+        'commune_id' => $centre->commune_id, 'region_id' => $centre->region_id,
+        'nom' => 'Localité '.$centre->code.' '.$rang, 'type_localite' => 'village',
+        'population_totale' => 1000, 'quota_sites' => 1,
+    ]);
+
+    // Bankui : deux sites, dont UN SEUL a des coordonnées.
+    \App\Models\Site::query()->create([
+        'centre_id' => $this->centre->id, 'localite_id' => $localite($this->centre, 1)->id,
+        'region_id' => $this->bankui->id, 'code' => 'BAN-C001-S01', 'nom' => 'Site placé',
+        'latitude' => 11.9, 'longitude' => -3.3, 'ordre_tournee' => 1, 'statut' => 'ouvert',
+    ]);
+    \App\Models\Site::query()->create([
+        'centre_id' => $this->centre->id, 'localite_id' => $localite($this->centre, 2)->id,
+        'region_id' => $this->bankui->id, 'code' => 'BAN-C001-S02', 'nom' => 'Site sans coordonnées',
+        'ordre_tournee' => 2, 'statut' => 'ouvert',
+    ]);
+
+    // Nando : un site, placé.
+    \App\Models\Site::query()->create([
+        'centre_id' => $centreNando->id, 'localite_id' => $localite($centreNando, 1)->id,
+        'region_id' => $this->nando->id, 'code' => 'NAN-C001-S01', 'nom' => 'Site de Nando',
+        'latitude' => 12.4, 'longitude' => -1.5, 'ordre_tournee' => 1, 'statut' => 'ouvert',
+    ]);
+
+    Sanctum::actingAs($this->admin);
+
+    $tout = $this->getJson('/api/v1/tableau-bord/sites-carte')->assertOk()->json('data');
+
+    expect($tout['total_sites'])->toBe(3)
+        ->and($tout['localises'])->toBe(2)
+        ->and($tout['region_id'])->toBeNull();
+
+    $parRegion = collect($tout['par_region'])->keyBy('code');
+
+    // Le site sans coordonnées EXISTE : il compte dans « sites », pas dans « placés ».
+    expect($parRegion['BAN']['sites'])->toBe(2)
+        ->and($parRegion['BAN']['localises'])->toBe(1)
+        ->and($parRegion['NAN']['sites'])->toBe(1)
+        ->and($parRegion['NAN']['localises'])->toBe(1);
+
+    $nando = $this->getJson('/api/v1/tableau-bord/sites-carte?region_id='.$this->nando->id)
+        ->assertOk()->json('data');
+
+    expect($nando['total_sites'])->toBe(1)
+        ->and($nando['localises'])->toBe(1)
+        ->and(collect($nando['sites'])->pluck('code')->all())->toBe(['NAN-C001-S01'])
+        // La répartition reste ENTIÈRE : c'est elle qui sert à changer de région.
+        ->and(count($nando['par_region']))->toBe(2);
+});
+
+it('refuse une région hors du périmètre au lieu de rendre une carte vide', function () {
+    Sanctum::actingAs($this->chefNando);
+
+    // Sa région à lui : accordée.
+    $this->getJson('/api/v1/tableau-bord/sites-carte?region_id='.$this->nando->id)->assertOk();
+
+    // La région voisine : refusée, et non « aucun site ».
+    $this->getJson('/api/v1/tableau-bord/sites-carte?region_id='.$this->bankui->id)->assertStatus(403);
+
+    // Sans filtre, il ne voit que la sienne — une seule ligne de répartition.
+    $donnees = $this->getJson('/api/v1/tableau-bord/sites-carte')->assertOk()->json('data');
+
+    expect(collect($donnees['par_region'])->pluck('code')->all())->toBe(['NAN']);
+});

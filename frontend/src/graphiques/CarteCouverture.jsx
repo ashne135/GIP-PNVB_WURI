@@ -101,7 +101,7 @@ function formatTaux(taux) {
     return `${Number(taux).toFixed(1).replace('.', ',')} %`;
 }
 
-export function CarteCouverture({ regions = [], sitesCarte = null }) {
+export function CarteCouverture({ regions = [], sitesCarte = null, hauteur = 'h-96' }) {
     const noeud = useRef(null);
     const carte = useRef(null);
     const calques = useRef([]);
@@ -258,7 +258,7 @@ export function CarteCouverture({ regions = [], sitesCarte = null }) {
             </figcaption>
 
             <div className="relative">
-                <div ref={noeud} className="h-96 w-full" role="region" aria-label="Carte de la couverture par région" />
+                <div ref={noeud} className={`${hauteur} w-full`} role="region" aria-label="Carte de la couverture par région" />
 
                 {etat.vide && (
                     <div className="absolute inset-0 z-[800] flex items-center justify-center bg-white/70 p-6">

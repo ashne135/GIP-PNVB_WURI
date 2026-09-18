@@ -4,6 +4,7 @@ import { Garde, GardeVisiteur } from './auth/Garde';
 import { Connexion } from './pages/Connexion';
 import { AccepterCharte, ChangerMotDePasse } from './pages/PremiereConnexion';
 import { TableauBord } from './pages/tableauBord/TableauBord';
+import { Cartographie } from './pages/Cartographie';
 import { AccesRefuse, Introuvable } from './pages/AccesRefuse';
 import { Alertes } from './pages/Alertes';
 import { ListeIncidents } from './pages/incidents/ListeIncidents';
@@ -92,6 +93,7 @@ export function App() {
             >
                 <Route index element={<Protege permission="tableau_bord.consulter"><TableauBord /></Protege>} />
 
+                <Route path="/cartographie" element={<Protege permission="tableau_bord.consulter"><Cartographie /></Protege>} />
                 <Route path="/alertes" element={<Protege permission="alertes.consulter"><Alertes /></Protege>} />
 
                 <Route path="/incidents" element={<Protege permission="incidents.consulter"><ListeIncidents /></Protege>} />

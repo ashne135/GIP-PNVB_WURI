@@ -53,8 +53,12 @@ describe('le menu', () => {
         // seuls Paramètres : les comptes, les listes et les synchronisations
         // demandent chacun leur propre droit.
         expect(menu.map((r) => r.titre)).toEqual(['Pilotage', 'Terrain', 'Déploiement', 'Référentiel', 'Administration']);
-        expect(menu.flatMap((r) => r.liens)).toHaveLength(11);
+        expect(menu.flatMap((r) => r.liens)).toHaveLength(12);
         expect(menu.at(-1).liens.map((l) => l.libelle)).toEqual(['Paramètres']);
+
+        // La cartographie suit le droit du tableau de bord : c'est la même
+        // mesure, montrée autrement.
+        expect(menu[0].liens.map((l) => l.libelle)).toContain('Cartographie');
     });
 
     it('réserve les comptes d’administration au porteur de roles.attribuer', () => {

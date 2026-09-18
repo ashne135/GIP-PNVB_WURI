@@ -417,7 +417,15 @@ class ServiceTableauBord
      *
      * @return array{total_sites: int, localises: int, sites: array<int, array<string, mixed>>}
      */
-    public function sitesCarte(User $utilisateur): array
+    /**
+     * Les sites à placer sur la carte, et le compte par région.
+     *
+     * $regionChoisie ne restreint que les MARQUEURS. La répartition par région,
+     * elle, reste calculée sur tout le périmètre : c'est elle qui sert à
+     * choisir la région suivante, et la vider quand on en filtre une reviendrait
+     * à scier la branche sur laquelle l'écran est assis.
+     */
+    public function sitesCarte(User $utilisateur, ?int $regionChoisie = null): array
     {
         $regions = $this->regionsAccessibles($utilisateur);
         $perimetre = fn () => DB::table('sites')
@@ -430,25 +438,79 @@ class ServiceTableauBord
             ->flip();
 
         $sites = $perimetre()
+            ->when($regionChoisie !== null, fn ($q) => $q->where('region_id', $regionChoisie))
             ->whereNotNull('latitude')
             ->whereNotNull('longitude')
             ->orderBy('id')
-            ->get(['id', 'code', 'nom', 'latitude', 'longitude'])
+            ->get(['id', 'code', 'nom', 'region_id', 'latitude', 'longitude'])
             ->map(fn ($site) => [
                 'id' => $site->id,
                 'code' => $site->code,
                 'nom' => $site->nom,
+                'region_id' => (int) $site->region_id,
                 'lat' => (float) $site->latitude,
                 'lng' => (float) $site->longitude,
                 'couvert' => isset($couverts[$site->id]),
             ])
             ->all();
 
+        $affiches = $perimetre()
+            ->when($regionChoisie !== null, fn ($q) => $q->where('region_id', $regionChoisie));
+
         return [
-            'total_sites' => $perimetre()->count(),
+            'region_id' => $regionChoisie,
+            'total_sites' => $affiches->count(),
             'localises' => count($sites),
             'sites' => $sites,
+            'par_region' => $this->sitesParRegion($regions, $couverts),
         ];
+    }
+
+    /**
+     * Combien de sites par région, combien placés, combien ont enregistré.
+     *
+     * TROIS NOMBRES QUI NE SE DÉDUISENT PAS L'UN DE L'AUTRE : une région peut
+     * compter 600 sites, n'en avoir placé aucun sur la carte, et pourtant en
+     * avoir dix qui enregistrent. Les confondre ferait lire un trou de données
+     * comme un trou de couverture.
+     *
+     * @param  array<int, int>|null  $regions
+     * @param  \Illuminate\Support\Collection<int, int>  $couverts
+     * @return array<int, array<string, mixed>>
+     */
+    private function sitesParRegion(?array $regions, $couverts): array
+    {
+        $comptes = DB::table('sites')
+            ->when($regions !== null, fn ($q) => $q->whereIn('region_id', $regions))
+            ->groupBy('region_id')
+            ->selectRaw('region_id, count(*) as total, '
+                .'sum(case when latitude is not null and longitude is not null then 1 else 0 end) as localises')
+            ->get()
+            ->keyBy('region_id');
+
+        // Les sites couverts se comptent par région à part : la liste vient des
+        // agrégats, pas de la table des sites.
+        $couvertsParRegion = DB::table('sites')
+            ->when($regions !== null, fn ($q) => $q->whereIn('region_id', $regions))
+            ->whereIn('id', $couverts->keys())
+            ->groupBy('region_id')
+            ->selectRaw('region_id, count(*) as couverts')
+            ->pluck('couverts', 'region_id');
+
+        return Region::query()
+            ->when($regions !== null, fn ($q) => $q->whereIn('id', $regions))
+            ->orderBy('nom')
+            ->get(['id', 'code', 'nom'])
+            ->map(fn (Region $region) => [
+                'region_id' => $region->id,
+                'code' => $region->code,
+                'nom' => $region->nom,
+                'sites' => (int) ($comptes[$region->id]->total ?? 0),
+                'localises' => (int) ($comptes[$region->id]->localises ?? 0),
+                'couverts' => (int) ($couvertsParRegion[$region->id] ?? 0),
+            ])
+            ->values()
+            ->all();
     }
 
     /**

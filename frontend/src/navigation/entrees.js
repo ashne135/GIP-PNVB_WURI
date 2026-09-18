@@ -24,6 +24,11 @@ export const entrees = [
                 permissions: ['tableau_bord.consulter'],
             },
             {
+                chemin: '/cartographie',
+                libelle: 'Cartographie',
+                permissions: ['tableau_bord.consulter'],
+            },
+            {
                 chemin: '/alertes',
                 libelle: 'Alertes',
                 permissions: ['alertes.consulter'],
