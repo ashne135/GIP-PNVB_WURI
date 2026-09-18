@@ -2,6 +2,7 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
@@ -39,7 +40,7 @@ return new class extends Migration
          * On ne relève QUE la valeur 2, celle d'origine. Si quelqu'un a déjà
          * fixé son propre plafond, c'est une décision, et elle tient.
          */
-        DB::table('parametres')
+        $releve = DB::table('parametres')
             ->where('cle', 'affectation.kits_par_centre_max')
             ->where('valeur', '2')
             ->update([
@@ -50,6 +51,20 @@ return new class extends Migration
                     .'à la saisie comme à l\'import.',
                 'updated_at' => now(),
             ]);
+
+        /*
+         * ET LE CACHE, que cet update ne vide pas tout seul.
+         *
+         * Parametre::valeur() garde chaque clé une heure en cache, et ce cache
+         * n'est purgé que par l'événement Eloquent « saved ». Un update en
+         * requête brute — le seul sûr dans une migration, car il n'exécute
+         * aucun code du modèle — ne déclenche pas cet événement. Sans cet
+         * oubli réparé, le serveur aurait continué à refuser 3 kits pendant une
+         * heure après la migration, sans que rien ne l'explique.
+         */
+        if ($releve > 0) {
+            Cache::forget('parametre:affectation.kits_par_centre_max');
+        }
     }
 
     public function down(): void
