@@ -7,6 +7,7 @@ import { ImportVolontaires } from '../src/pages/volontaires/ImportVolontaires';
 import { Qualification } from '../src/pages/volontaires/Qualification';
 import { RemiseIdentifiants } from '../src/pages/volontaires/RemiseIdentifiants';
 import { Registre } from '../src/pages/volontaires/Registre';
+import { minimumsProfil, niveauSuffit } from '../src/domaine/volontaires';
 
 /**
  * LE CHEMIN DU FICHIER DES RETENUS JUSQU'AU TÉLÉPHONE.
@@ -600,5 +601,31 @@ describe('Le bouton du bordereau', () => {
         fireEvent.change(champ, { target: { value: '' } });
         expect(bouton).toBeDisabled();
         expect(within(formulaire).getByText('Donnez un nom à la session pour l’activer.')).toBeInTheDocument();
+    });
+});
+
+/**
+ * LA BARRE DU NIVEAU D'ÉTUDE, CÔTÉ ÉCRAN.
+ *
+ * Ce tableau ne décide rien — le serveur revérifie et c'est lui qui refuse —
+ * mais il annonce à l'administrateur ce qui va passer. S'il se désynchronise du
+ * serveur, l'écran promet ou interdit à tort. D'où ces cas, qui figent les trois
+ * barres telles que le client les a fixées.
+ */
+describe('le niveau exigé par profil', () => {
+    it('laisse un opérateur de kit entrer avec le BAC', () => {
+        // Décision du client du 18/09/2026 : la barre passe de BAC+1 à BAC.
+        expect(niveauSuffit('bac', 'operateur')).toBe(true);
+        expect(minimumsProfil.operateur).toBe('bac');
+    });
+
+    it('garde la barre : le BEPC ne fait pas un opérateur, le BAC ne fait pas un superviseur', () => {
+        expect(niveauSuffit('troisieme_bepc', 'operateur')).toBe(false);
+        expect(niveauSuffit('bac', 'superviseur')).toBe(false);
+        expect(niveauSuffit('quatrieme', 'assistant')).toBe(true);
+    });
+
+    it('ne prend pas un niveau absent pour un niveau suffisant', () => {
+        expect(niveauSuffit(null, 'operateur')).toBe(false);
     });
 });

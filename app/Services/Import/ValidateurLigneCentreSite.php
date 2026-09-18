@@ -4,6 +4,7 @@ namespace App\Services\Import;
 
 use App\Models\Commune;
 use App\Models\Localite;
+use App\Models\Parametre;
 use App\Models\Site;
 
 /**
@@ -79,11 +80,22 @@ class ValidateurLigneCentreSite
         // ---------- Nombres ----------
         $kits = (int) ($donnees['nombre_kits'] ?? 0);
 
-        if ($kits > 2) {
-            $erreurs[] = "un centre dispose de 1 ou 2 kits, pas {$kits}";
+        // LE NOMBRE DE KITS N'EST PLUS PLAFONNÉ À 2 (décision du client,
+        // 18/09/2026). Seule subsiste la borne du paramètre, qui protège la
+        // colonne — un entier d'un octet.
+        //
+        // L'ancienne version faisait pire que refuser : elle signalait l'erreur
+        // ET ramenait la valeur à 2. Un fichier annonçant 5 kits aurait pu
+        // entrer en base avec 2, sans que personne ne le voie. On ne corrige
+        // plus une valeur à la place de celui qui l'a écrite : ou elle est
+        // recevable, ou la ligne est refusée.
+        $plafond = Parametre::entier('affectation.kits_par_centre_max', 255);
+
+        if ($kits > $plafond) {
+            $erreurs[] = "un centre ne peut pas dépasser {$plafond} kits, et cette ligne en annonce {$kits}";
         }
 
-        $donnees['nombre_kits'] = $kits > 0 ? min($kits, 2) : 1;
+        $donnees['nombre_kits'] = $kits > 0 ? $kits : 1;
         $donnees['ordre_tournee'] = (int) ($donnees['ordre_tournee'] ?? 0) ?: null;
 
         $donnees['latitude'] = $this->coordonnee($donnees['latitude'] ?? '', -90, 90);

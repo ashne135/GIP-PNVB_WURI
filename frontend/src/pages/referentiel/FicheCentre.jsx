@@ -154,11 +154,9 @@ function ModifierCentre({ centre, onFait }) {
                         <option value="ouvert">Ouvert</option>
                     </Liste>
                 </Champ>
+                {/* Saisie libre : le plafond de 2 kits est levé (18/09/2026). */}
                 <Champ nom="nombre_kits" libelle="Nombre de kits" erreurs={action.erreur?.erreurs}>
-                    <Liste value={champs.nombre_kits} onChange={changer('nombre_kits')}>
-                        <option value="1">1</option>
-                        <option value="2">2</option>
-                    </Liste>
+                    <Saisie type="number" min="1" step="1" value={champs.nombre_kits} onChange={changer('nombre_kits')} />
                 </Champ>
                 <label className="flex items-center gap-2 self-end pb-2 text-sm text-ardoise-800">
                     <input

@@ -7,6 +7,7 @@ use App\Models\FeuillePresence;
 use App\Models\Import;
 use App\Models\Kit;
 use App\Models\Localite;
+use App\Models\Parametre;
 use App\Models\Province;
 use App\Models\Region;
 use App\Models\Site;
@@ -150,6 +151,23 @@ it('génère le code du centre selon la règle du cadrage', function () {
     ])->assertStatus(201);
 
     expect($second->json('data.code'))->toBe('BAN-BAGA-C002');
+});
+
+it('crée un centre avec autant de kits qu\'on veut', function () {
+    // Le champ est libre depuis le 18/09/2026 : cinq kits sur un centre,
+    // c'est une donnée du Programme, plus une erreur de saisie.
+    $reponse = $this->postJson('/api/v1/referentiel/centres', [
+        'commune_id' => $this->commune->id,
+        'nom' => 'Centre à cinq kits',
+        'nombre_kits' => 5,
+    ])->assertStatus(201);
+
+    expect($reponse->json('data.nombre_kits'))->toBe(5);
+
+    // Zéro kit reste refusé : un centre sans kit n'enregistre personne.
+    $this->postJson('/api/v1/referentiel/centres', [
+        'commune_id' => $this->commune->id, 'nom' => 'Centre sans kit', 'nombre_kits' => 0,
+    ])->assertStatus(422)->assertJsonValidationErrors('nombre_kits', 'data.erreurs');
 });
 
 it('génère le code du site à partir de celui du centre', function () {
@@ -306,16 +324,39 @@ it('signale les lignes dont le territoire est introuvable', function () {
     expect($motifs)->toContain('nom du centre est vide');
 });
 
-it('refuse un centre à plus de deux kits', function () {
+it('importe un centre à plus de deux kits, sans ramener le nombre en douce', function () {
+    // LE PLAFOND DE 2 EST LEVÉ (décision du client, 18/09/2026). Le piège que
+    // ce cas garde fermé : l'ancienne version signalait l'erreur ET écrivait 2.
+    // Un fichier annonçant 5 kits doit donner 5 kits en base, ou rien.
     $this->postJson('/api/v1/imports/centres-sites', [
         'fichier' => fichierCentres([
-            ['Bankui', 'Bale', 'Bagassi', '', 'Assio', '', 'Centre de Bagassi', '3', 'Site 1', '1', '', ''],
+            ['Bankui', 'Bale', 'Bagassi', '', 'Assio', '', 'Centre de Bagassi', '5', 'Site 1', '1', '', ''],
+        ]),
+        'mode' => 'completer',
+    ])->assertStatus(201);
+
+    $import = Import::query()->latest()->first();
+    expect($import->lignes()->where('valide', false)->count())->toBe(0);
+
+    $this->postJson("/api/v1/imports/centres-sites/{$import->id}/confirmer")->assertOk();
+
+    expect(Centre::query()->first()->nombre_kits)->toBe(5);
+});
+
+it('refuse un nombre de kits au-delà du plafond des paramètres', function () {
+    // La borne n'a pas disparu : elle est devenue un paramètre. Sans ce cas, on
+    // ne saurait pas distinguer « plafond relevé » de « plafond supprimé ».
+    Parametre::query()->where('cle', 'affectation.kits_par_centre_max')->update(['valeur' => '4']);
+
+    $this->postJson('/api/v1/imports/centres-sites', [
+        'fichier' => fichierCentres([
+            ['Bankui', 'Bale', 'Bagassi', '', 'Assio', '', 'Centre de Bagassi', '9', 'Site 1', '1', '', ''],
         ]),
         'mode' => 'completer',
     ])->assertStatus(201);
 
     $motif = Import::query()->latest()->first()->lignes()->where('valide', false)->value('motif_erreur');
-    expect($motif)->toContain('1 ou 2 kits');
+    expect($motif)->toContain('dépasser 4 kits')->toContain('9');
 });
 
 it('repère un site en double dans le fichier', function () {

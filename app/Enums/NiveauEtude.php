@@ -7,8 +7,11 @@ namespace App\Enums;
  * 17/09/2026) :
  *
  *   A-OPK ................ 4ème au minimum
- *   Opérateur de kit ..... BAC+1 au minimum
+ *   Opérateur de kit ..... BAC au minimum
  *   Superviseur de centre  Licence (BAC+3) au minimum
+ *
+ * L'opérateur de kit exigeait BAC+1 : le client a ramené la barre au BAC le
+ * 18/09/2026. Le BAC+1 reste évidemment accepté — il est au-dessus.
  *
  * L'échelle est ORDONNÉE : c'est ce rang, et lui seul, qui permet de comparer.
  * L'intitulé exact du diplôme est conservé à côté, en texte, pour le dossier —
@@ -86,7 +89,7 @@ enum NiveauEtude: string
     {
         return match ($categorie) {
             CategorieVolontaire::Assistant => self::Quatrieme,
-            CategorieVolontaire::Operateur => self::BacPlus1,
+            CategorieVolontaire::Operateur => self::Bac,
             CategorieVolontaire::Superviseur => self::Licence,
         };
     }

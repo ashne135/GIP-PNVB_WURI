@@ -309,7 +309,7 @@ function FicheVolontaire({ volontaire, onAnnuler, onEnregistre }) {
                     <Champ
                         nom="niveau_etude"
                         libelle="Niveau d’étude"
-                        aide="Il commande le profil : 4ème pour un A-OPK, BAC+1 pour un opérateur, Licence pour un superviseur."
+                        aide="Il commande le profil : 4ème pour un A-OPK, BAC pour un opérateur, Licence pour un superviseur."
                         erreurs={erreurs}
                     >
                         <Liste id="fiche-niveau" value={valeurs.niveau_etude} onChange={changer('niveau_etude')}>

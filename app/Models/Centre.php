@@ -15,7 +15,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  *
  * Rattaché à la COMMUNE : 966 centres pour 7 453 localités, et la codification
  * <RÉGION>-<COMMUNE>-C<nnn> ne porte aucune localité.
- * Un centre dispose de 1 ou 2 kits ; un superviseur en couvre 2.
+ * Un centre dispose d’un ou plusieurs kits ; un superviseur couvre 2 centres.
  */
 class Centre extends Model
 {

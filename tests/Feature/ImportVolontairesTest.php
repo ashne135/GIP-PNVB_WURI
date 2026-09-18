@@ -361,7 +361,7 @@ it('écarte le profil que le niveau ne permet pas, SANS perdre la ligne', functi
     // appliqué, mais le retenu entre bien au registre, « à qualifier ».
     $reponse = televerser([
         ligneRetenu(['profil' => 'Superviseur de centre', 'niveau' => 'BAC']),
-        // Un opérateur exige BAC+1 : sans niveau du tout, même traitement.
+        // Un opérateur exige le BAC : sans niveau du tout, même traitement.
         ligneRetenu(['n' => '2', 'profil' => 'Opérateur de kit', 'niveau' => '', 'diplome' => '',
             'telephone' => '76234567', 'cnib' => 'B2345678', 'email' => 'opk@exemple.bf', 'nom' => 'KABORE']),
         // Un A-OPK n'exige que la 4ème : la 3ème suffit, le profil tient.

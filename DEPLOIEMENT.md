@@ -466,10 +466,18 @@ suggestion, chaque étape s'appuie sur la précédente.
 | 1 | Centres et sites › Importer | Les centres et leurs sites | Une vague ouvre des centres ; sans eux, le tirage refuse de partir |
 | 2 | Parc de kits | Au moins un kit **fonctionnel** par opérateur, sans détenteur | Un opérateur sans kit est signalé et reste sans passage |
 | 3 | Volontaires › Importer les retenus | Le fichier des retenus (modèle et canevas sur l'écran) | Crée les comptes, inactifs |
+
+> **Le nombre de kits d'un centre est libre** (décision du client, 18/09/2026).
+> Il était plafonné à 2, à la saisie comme à l'import : ce plafond est levé. La
+> seule borne qui subsiste est le paramètre `affectation.kits_par_centre_max`,
+> porté à 255 — la capacité de la colonne, pas une règle métier. Pour se fixer
+> un plafond, abaissez ce paramètre : il s'applique aux deux chemins. Le tirage
+> crée toujours **un opérateur par kit**, sans plafond lui non plus.
 | 4 | Volontaires › Profils à attribuer | Un profil pour chaque fiche importée sans « Profil » | Une fiche sans profil n'entre dans aucun tirage |
 
-> **Le niveau d'étude commande le profil** (décision du client, 17/09/2026) :
-> 4ème pour un A-OPK, BAC+1 pour un opérateur de kit, Licence pour un
+> **Le niveau d'étude commande le profil** (décision du client, 17/09/2026,
+> barre de l'opérateur revue le 18/09/2026) :
+> 4ème pour un A-OPK, BAC pour un opérateur de kit, Licence pour un
 > superviseur de centre. Le fichier porte deux colonnes : **Niveau d'étude**
 > (valeur de l'échelle) et **Diplôme** (l'intitulé exact). Un profil que le
 > niveau ne permet pas n'est pas appliqué : la fiche entre « à qualifier », et

@@ -171,11 +171,21 @@ function CreerCentre({ regions }) {
                 <Champ nom="nom" libelle="Nom du centre" erreurs={action.erreur?.erreurs}>
                     <Saisie value={champs.nom} onChange={(e) => setChamps((c) => ({ ...c, nom: e.target.value }))} required maxLength={120} />
                 </Champ>
-                <Champ nom="nombre_kits" libelle="Nombre de kits" erreurs={action.erreur?.erreurs} aide="Deux au maximum par centre.">
-                    <Liste value={champs.nombre_kits} onChange={(e) => setChamps((c) => ({ ...c, nombre_kits: e.target.value }))}>
-                        <option value="1">1</option>
-                        <option value="2">2</option>
-                    </Liste>
+                {/*
+                  * SAISIE LIBRE, et non plus une liste de deux choix : le
+                  * plafond de 2 kits par centre a été levé le 18/09/2026. Le
+                  * serveur garde la borne — celle du paramètre — et c'est lui
+                  * qui refuse : on ne remplace pas un contrôle serveur par une
+                  * limite d'écran.
+                  */}
+                <Champ nom="nombre_kits" libelle="Nombre de kits" erreurs={action.erreur?.erreurs} aide="Autant que le centre en reçoit.">
+                    <Saisie
+                        type="number"
+                        min="1"
+                        step="1"
+                        value={champs.nombre_kits}
+                        onChange={(e) => setChamps((c) => ({ ...c, nombre_kits: e.target.value }))}
+                    />
                 </Champ>
                 <label className="flex items-center gap-2 text-sm text-ardoise-800 sm:col-span-2">
                     <input

@@ -239,7 +239,8 @@ class TirageAffectations
         $rang = 0;
 
         foreach ($centres as $centre) {
-            // Un centre dispose de 1 ou 2 kits : autant d'opérateurs.
+            // Autant d'opérateurs que le centre compte de kits — le plafond de
+            // 2 a été levé le 18/09/2026, la boucle n'en supposait rien.
             for ($n = 0; $n < max(1, (int) $centre->nombre_kits); $n++) {
                 $operateur = array_shift($vivier);
 

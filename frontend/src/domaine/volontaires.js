@@ -36,7 +36,7 @@ export function rangNiveau(valeur) {
 /** Le niveau exigé pour tenir un profil. Le serveur revérifie, et peut déroger. */
 export const minimumsProfil = {
     assistant: 'quatrieme',
-    operateur: 'bac_plus_1',
+    operateur: 'bac',
     superviseur: 'licence',
 };
 
@@ -143,7 +143,7 @@ export const colonnesCanevas = [
         intitule: 'Niveau d’étude',
         exigence: 'pour le profil',
         valeurs: 'Aucun, CEP, 4ème, 3ème ou BEPC, BAC, BAC+1, BAC+2, Licence, Master. '
-            + 'Il commande le profil : 4ème pour un A-OPK, BAC+1 pour un opérateur, Licence pour un superviseur. '
+            + 'Il commande le profil : 4ème pour un A-OPK, BAC pour un opérateur, Licence pour un superviseur. '
             + 'Un profil que le niveau ne permet pas n’est pas appliqué : la fiche part « à qualifier ».',
     },
     {

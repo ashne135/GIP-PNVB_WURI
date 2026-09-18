@@ -17,7 +17,7 @@ use Spatie\Activitylog\Models\Activity;
 
 /**
  * LE NIVEAU D'ÉTUDE COMMANDE LE PROFIL (décision du client, 17/09/2026) :
- * 4ème pour un A-OPK, BAC+1 pour un opérateur de kit, Licence pour un
+ * 4ème pour un A-OPK, BAC pour un opérateur de kit, Licence pour un
  * superviseur de centre.
  *
  * Ce qu'on protège :
@@ -80,7 +80,7 @@ it('classe les niveaux par rang, et non par libellé', function () {
     expect(NiveauEtude::Quatrieme->atteint(NiveauEtude::Quatrieme))->toBeTrue();
 
     expect(NiveauEtude::minimumPour(CategorieVolontaire::Superviseur))->toBe(NiveauEtude::Licence);
-    expect(NiveauEtude::minimumPour(CategorieVolontaire::Operateur))->toBe(NiveauEtude::BacPlus1);
+    expect(NiveauEtude::minimumPour(CategorieVolontaire::Operateur))->toBe(NiveauEtude::Bac);
     expect(NiveauEtude::minimumPour(CategorieVolontaire::Assistant))->toBe(NiveauEtude::Quatrieme);
 });
 
@@ -97,6 +97,19 @@ it('refuse un profil que le niveau ne permet pas, en nommant les deux niveaux', 
     expect($fiche->fresh()->categorie)->toBeNull();
 });
 
+it('garde une barre pour l\'opérateur : le BEPC ne suffit pas', function () {
+    // Descendre la barre au BAC n'est pas la supprimer. Sans ce cas, plus rien
+    // ne distinguerait « exigence assouplie » de « exigence disparue ».
+    $fiche = ficheNiveau('+22670088018', 'troisieme_bepc');
+
+    $reponse = $this->postJson('/api/v1/volontaires/a-qualifier', [
+        'qualifications' => [['volontaire_id' => $fiche->id, 'categorie' => 'operateur']],
+    ])->assertOk();
+
+    expect($reponse->json('data.refusees.0.motif'))->toContain('3ème ou BEPC')->toContain('BAC');
+    expect($fiche->fresh()->categorie)->toBeNull();
+});
+
 it('refuse aussi quand le niveau n\'est pas renseigné', function () {
     $fiche = ficheNiveau('+22670088011', null);
 
@@ -109,7 +122,10 @@ it('refuse aussi quand le niveau n\'est pas renseigné', function () {
 });
 
 it('accepte le profil dès que le niveau suffit', function () {
-    $opk = ficheNiveau('+22670088012', 'bac_plus_1');
+    // LE BAC SUFFIT POUR UN OPÉRATEUR DE KIT (décision du client, 18/09/2026) :
+    // la barre était à BAC+1, elle est descendue au BAC. Un BAC tout court doit
+    // donc passer sans dérogation, et c'est exactement ce que ce cas vérifie.
+    $opk = ficheNiveau('+22670088012', 'bac');
     $aopk = ficheNiveau('+22670088013', 'quatrieme', $this->localite->id);
 
     $this->postJson('/api/v1/volontaires/a-qualifier', [

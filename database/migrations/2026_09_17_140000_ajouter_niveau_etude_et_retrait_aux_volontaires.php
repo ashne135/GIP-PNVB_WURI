@@ -6,7 +6,7 @@ use Illuminate\Support\Facades\Schema;
 
 /**
  * LE NIVEAU D'ÉTUDE conditionne le profil (décision du client, 17/09/2026) :
- * 4ème pour un A-OPK, BAC+1 pour un opérateur de kit, Licence pour un
+ * 4ème pour un A-OPK, BAC pour un opérateur de kit, Licence pour un
  * superviseur de centre.
  *
  * DEUX COLONNES, et pas une :

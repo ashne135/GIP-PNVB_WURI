@@ -57,8 +57,12 @@ class ParametresSeeder extends Seeder
                 'Distance maximale entre les 2 centres d\'un superviseur',
                 'À vol d\'oiseau. La même commune reste préférée. Au-delà, le tirage marque '
                 .'la contrainte comme non satisfaite et l\'affiche dans la proposition.'),
-            $this->p('affectation.kits_par_centre_max', 2, 'entier', 'affectation',
-                'Nombre maximal de kits par centre'),
+            $this->p('affectation.kits_par_centre_max', 255, 'entier', 'affectation',
+                'Nombre maximal de kits par centre',
+                'Le plafond métier de 2 a été levé le 18/09/2026 : un centre reçoit autant '
+                .'de kits que le Programme en déploie. 255 est la borne de la colonne, pas '
+                .'une règle : abaissez ce paramètre pour vous fixer un plafond, il s\'applique '
+                .'à la saisie comme à l\'import.'),
             $this->p('affectation.duree_passage_site_jours', 3, 'entier', 'affectation',
                 'Durée d\'un passage de kit sur un site',
                 'En jours ouvrés. 12 294 sites pour 966 kits, soit environ 12,7 sites par kit.'),

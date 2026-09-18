@@ -90,7 +90,7 @@ class CanevasVolontaires
         ],
         /*
          * LE NIVEAU D'ÉTUDE commande le profil (décision du client, 17/09/2026) :
-         * 4ème pour un A-OPK, BAC+1 pour un opérateur, Licence pour un
+         * 4ème pour un A-OPK, BAC pour un opérateur, Licence pour un
          * superviseur. Il porte une valeur de l'échelle, seule forme comparable.
          * Le DIPLÔME, lui, est l'intitulé exact — il s'affiche, il ne se compare
          * jamais.

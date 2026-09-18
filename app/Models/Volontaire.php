@@ -317,7 +317,7 @@ class Volontaire extends Model
 
     /**
      * LE NIVEAU D'ÉTUDE COMMANDE LE PROFIL (décision du client, 17/09/2026) :
-     * 4ème pour un A-OPK, BAC+1 pour un opérateur, Licence pour un superviseur.
+     * 4ème pour un A-OPK, BAC pour un opérateur, Licence pour un superviseur.
      *
      * Le refus est la règle ; la DÉROGATION est possible, mais elle doit être
      * MOTIVÉE et elle reste inscrite sur la fiche. Un niveau ABSENT n'est pas
