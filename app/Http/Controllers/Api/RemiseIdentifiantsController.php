@@ -44,6 +44,8 @@ class RemiseIdentifiantsController extends Controller
                 fn ($q) => $q->where('etat_remise', $requete->string('etat_remise')))
             ->when($requete->filled('statut_compte'),
                 fn ($q) => $q->where('statut_compte', $requete->string('statut_compte')))
+            ->when($requete->filled('region_id'),
+                fn ($q) => $this->filtrerParRegion($q, $requete->integer('region_id')))
             ->when($requete->filled('categorie'),
                 fn ($q) => $q->whereHas('volontaire',
                     fn ($r) => $r->where('categorie', $requete->string('categorie'))))
@@ -91,6 +93,8 @@ class RemiseIdentifiantsController extends Controller
                 fn ($q) => $q->where('etat_remise', $requete->string('etat_remise')))
             ->when($requete->filled('statut_compte'),
                 fn ($q) => $q->where('statut_compte', $requete->string('statut_compte')))
+            ->when($requete->filled('region_id'),
+                fn ($q) => $this->filtrerParRegion($q, $requete->integer('region_id')))
             ->when($requete->filled('categorie'),
                 fn ($q) => $q->whereHas('volontaire',
                     fn ($r) => $r->where('categorie', $requete->string('categorie'))))
@@ -121,6 +125,11 @@ class RemiseIdentifiantsController extends Controller
         ]);
 
         $filtres = collect([
+            // La région est nommée, jamais rendue par son identifiant : le PDF
+            // se lit, il ne se déchiffre pas.
+            'région' => $requete->filled('region_id')
+                ? (string) \App\Models\Region::query()->whereKey($requete->integer('region_id'))->value('nom')
+                : '',
             'remise' => $requete->string('etat_remise')->toString(),
             'accès' => $requete->string('statut_compte')->toString(),
             'catégorie' => $requete->string('categorie')->toString(),
@@ -249,6 +258,26 @@ class RemiseIdentifiantsController extends Controller
         abort_unless(Storage::exists($chemin), 404);
 
         return Storage::download($chemin);
+    }
+
+    /**
+     * FILTRER PAR RÉGION DE DÉPLOIEMENT.
+     *
+     * La région d'un agent, c'est celle où il est affecté — pas celle d'où il
+     * vient. Elle se lit sur le centre de son affectation, et À DÉFAUT sur la
+     * vague : un SUPERVISEUR n'a pas de centre, son affectation porte une unité
+     * de supervision qui en couvre deux. Ne filtrer que sur le centre le ferait
+     * disparaître de sa propre région.
+     *
+     * Un volontaire jamais affecté n'appartient à aucune région : il ne sort
+     * dans aucun filtre régional, et c'est exact.
+     */
+    private function filtrerParRegion(Builder $requete, int $regionId): Builder
+    {
+        return $requete->whereHas('volontaire.affectations', fn (Builder $q) => $q
+            ->where(fn (Builder $r) => $r
+                ->whereHas('centre', fn (Builder $c) => $c->where('region_id', $regionId))
+                ->orWhereHas('vague', fn (Builder $v) => $v->where('region_id', $regionId))));
     }
 
     /**

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { api, avecParametres } from '../../api/client';
 import { useAuth } from '../../auth/ContexteAuth';
 import { useAction, useListe, useTelechargement } from '../../outils/crochets';
@@ -39,6 +40,10 @@ export function RemiseIdentifiants() {
     const peutAgir = auth.peut('comptes.renvoyer_identifiants');
 
     const liste = useListe('remises', '/comptes/remises');
+    const regions = useQuery({
+        queryKey: ['referentiel-regions'],
+        queryFn: () => api.lire('/referentiel/regions'),
+    });
     const [choisis, setChoisis] = useState(() => new Map());
     const [session, setSession] = useState('');
 
@@ -171,6 +176,30 @@ export function RemiseIdentifiants() {
                     onChange={(v) => liste.changerFiltre('categorie', v)}
                     tous="Toutes"
                     options={categories}
+                />
+                {/*
+                  * La RÉGION DE DÉPLOIEMENT, pour préparer un bordereau région
+                  * par région. Un agent jamais affecté n'appartient encore à
+                  * aucune région : il ne sort dans aucun filtre régional.
+                  */}
+                {(regions.data ?? []).length > 1 && (
+                    <FiltreListe
+                        libelle="Région"
+                        valeur={liste.filtres.region_id}
+                        onChange={(v) => liste.changerFiltre('region_id', v)}
+                        tous="Toutes"
+                        options={(regions.data ?? []).map((r) => ({ valeur: r.id, libelle: r.nom }))}
+                    />
+                )}
+                <FiltreListe
+                    libelle="Lignes par page"
+                    valeur={liste.filtres.par_page}
+                    onChange={(v) => liste.changerFiltre('par_page', v)}
+                    tous="50"
+                    options={[
+                        { valeur: 100, libelle: '100' },
+                        { valeur: 200, libelle: '200' },
+                    ]}
                 />
                 <label className="flex items-center gap-2 self-end pb-2 text-sm text-ardoise-800">
                     <input

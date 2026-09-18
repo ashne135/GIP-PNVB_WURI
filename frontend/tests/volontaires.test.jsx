@@ -305,8 +305,13 @@ const compte = (surcharge = {}) => ({
     ...surcharge,
 });
 
-function lireRemises(canaux) {
-    return () => Promise.resolve({
+function lireRemises(canaux, regions = []) {
+    return (url) => {
+        if (url.startsWith('/referentiel/regions')) {
+            return Promise.resolve(regions);
+        }
+
+        return Promise.resolve({
         comptes: paginee([
             compte(),
             compte({
@@ -314,9 +319,10 @@ function lireRemises(canaux) {
                 volontaire: { matricule: 'PNVB-OPK000002', categorie: 'operateur' }, remises_identifiants: [],
             }),
         ]),
-        repartition: { non_envoye: { nombre: 1 }, envoye: { nombre: 1 } },
-        canaux,
-    });
+            repartition: { non_envoye: { nombre: 1 }, envoye: { nombre: 1 } },
+            canaux,
+        });
+    };
 }
 
 describe('Remise des identifiants', () => {
@@ -506,5 +512,36 @@ describe('État des accès', () => {
         fireEvent.click(screen.getByRole('button', { name: 'État des accès (PDF)' }));
 
         await waitFor(() => expect(appels.telecharger).toHaveBeenCalledWith('/comptes/remises/etat-acces?recherche=KABORE'));
+    });
+});
+
+describe('Bordereau par région', () => {
+    it('filtre par région de déploiement, et l’emporte dans le PDF', async () => {
+        appels.lire.mockImplementation(lireRemises(
+            { courriel_simule: true, sms_simule: true },
+            [{ id: 7, nom: 'Bankui' }, { id: 8, nom: 'Nando' }],
+        ));
+        appels.telecharger.mockResolvedValue({ fichier: new Blob(['%PDF']), nom: 'etat-acces.pdf' });
+
+        monter(<RemiseIdentifiants />);
+
+        const region = await screen.findByLabelText('Région');
+        fireEvent.change(region, { target: { value: '7' } });
+
+        await waitFor(() => expect(appels.lire).toHaveBeenLastCalledWith('/comptes/remises?region_id=7&page=1'));
+
+        fireEvent.click(screen.getByRole('button', { name: 'État des accès (PDF)' }));
+
+        await waitFor(() => expect(appels.telecharger)
+            .toHaveBeenCalledWith('/comptes/remises/etat-acces?region_id=7'));
+    });
+
+    it('ne propose pas de région quand l’utilisateur n’en voit qu’une', async () => {
+        appels.lire.mockImplementation(lireRemises({}, [{ id: 7, nom: 'Bankui' }]));
+
+        monter(<RemiseIdentifiants />);
+
+        await screen.findByText('PNVB-OPK000001');
+        expect(screen.queryByLabelText('Région')).not.toBeInTheDocument();
     });
 });

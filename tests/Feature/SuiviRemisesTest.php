@@ -146,6 +146,31 @@ it('retrouve un agent par son nom, son téléphone ou son matricule', function (
     expect(collect($parMatricule->json('data.comptes.data'))->pluck('nom')->all())->toBe(['KABORE']);
 });
 
+it('filtre par région de déploiement, superviseurs compris', function () {
+    Sanctum::actingAs($this->admin);
+
+    // Un SUPERVISEUR n'a pas de centre : son affectation porte une unité de
+    // supervision. Sa région se lit alors sur la vague — sans quoi il
+    // disparaîtrait du filtre de sa propre région.
+    $superviseur = volontaireSuivi('+22670022020', 'TRAORE', 'PNVB-SUP000020');
+    $vague = App\Models\VagueDeploiement::query()->where('region_id', $this->bankui->id)->firstOrFail();
+    App\Models\Affectation::query()->create([
+        'vague_id' => $vague->id, 'volontaire_id' => $superviseur->id,
+        'role_terrain' => 'superviseur', 'centre_id' => null,
+        'date_debut' => now()->toDateString(), 'statut' => 'active', 'origine' => 'tirage_auto',
+    ]);
+
+    $bankui = $this->getJson('/api/v1/comptes/remises?region_id='.$this->bankui->id)->assertOk();
+    expect(collect($bankui->json('data.comptes.data'))->pluck('nom')->sort()->values()->all())
+        ->toBe(['KABORE', 'TRAORE']);
+
+    $nando = $this->getJson('/api/v1/comptes/remises?region_id='.$this->nando->id)->assertOk();
+    expect(collect($nando->json('data.comptes.data'))->pluck('nom')->all())->toBe(['ZONGO']);
+
+    // Le PDF suit le même filtre, et nomme la région plutôt que son identifiant.
+    $this->get('/api/v1/comptes/remises/etat-acces?region_id='.$this->bankui->id)->assertOk();
+});
+
 it('filtre sur l\'état de l\'accès', function () {
     Sanctum::actingAs($this->admin);
     $this->agentNando->user->update(['statut_compte' => StatutCompte::Actif->value]);

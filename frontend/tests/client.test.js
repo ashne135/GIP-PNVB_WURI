@@ -238,3 +238,22 @@ describe('ce qui compte comme erreur de validation', () => {
         });
     });
 });
+
+/**
+ * LES FICHIERS PUBLICS SUIVENT LE CHEMIN DE DÉPLOIEMENT.
+ *
+ * Le logo de la barre latérale pointait sur « /logo-pnvb.jpg » : servi sous
+ * /pnvbwuri, le navigateur allait le chercher à la racine du domaine — chez
+ * une autre application — et l'image ne s'affichait pas, sans la moindre
+ * erreur à l'écran.
+ */
+describe('les fichiers publics', () => {
+    it('préfixent le chemin de base, et ne partent jamais de la racine', async () => {
+        const { fichierPublic } = await import('../src/outils/chemins');
+
+        expect(fichierPublic('logo-pnvb.jpg')).toBe(`${import.meta.env.BASE_URL}logo-pnvb.jpg`);
+        // Une barre oblique de tête ne doit pas casser la composition.
+        expect(fichierPublic('/logo-pnvb.jpg')).toBe(fichierPublic('logo-pnvb.jpg'));
+        expect(fichierPublic('logo-pnvb.jpg').startsWith('//')).toBe(false);
+    });
+});

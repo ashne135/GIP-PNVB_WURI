@@ -4,7 +4,12 @@
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <meta name="robots" content="noindex, nofollow" />
-        <link rel="icon" href="/logo-pnvb.jpg" />
+        <!--
+          %BASE_URL% et non « / » : servi sous un sous-chemin, une adresse
+          absolue enverrait le navigateur chercher l'icône à la racine du
+          domaine, chez une autre application.
+        -->
+        <link rel="icon" href="%BASE_URL%logo-pnvb.jpg" />
         <title>Back-office PNVB</title>
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
         <link

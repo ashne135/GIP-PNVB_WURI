@@ -4,6 +4,7 @@ import { useAuth } from '../auth/ContexteAuth';
 import { menuPour } from '../navigation/entrees';
 import { Pastille } from './Tableau';
 import { nomDe } from '../outils/format';
+import { fichierPublic } from '../outils/chemins';
 
 /**
  * LA MISE EN PAGE DU BACK-OFFICE.
@@ -102,7 +103,7 @@ export function Disposition() {
             >
                 <div className="flex items-center gap-3 border-b border-pnvb-800 px-4 py-4">
                     <img
-                        src="/logo-pnvb.jpg"
+                        src={fichierPublic('logo-pnvb.jpg')}
                         alt="Programme national de volontariat au Burkina Faso"
                         className="h-12 w-12 rounded-md bg-white object-contain p-1"
                     />
