@@ -93,7 +93,26 @@ class ServiceMouvementsKit
 
     private function verifierRemise(Kit $kit, array $donnees): void
     {
-        if ($kit->volontaire_detenteur_id !== null) {
+        $destinataire = $this->destinataire($donnees);
+
+        /*
+         * DEUX ACTES DISTINCTS, ET C'EST VOULU.
+         *
+         * La VALIDATION D'UNE VAGUE attribue déjà le kit à son opérateur : le
+         * tirage a désigné qui travaille sur quel kit, et le parc doit le
+         * refléter le jour même. Mais cette attribution est administrative :
+         * personne n'a encore ouvert la mallette.
+         *
+         * LA REMISE EST L'ACTE PHYSIQUE : on constate l'état, on photographie,
+         * et c'est cela qui engage la responsabilité de l'agent. La refuser
+         * parce que l'attribution existe déjà rendrait ce constat IMPOSSIBLE
+         * après toute validation — c'est-à-dire, en pratique, toujours.
+         *
+         * On n'oppose donc un refus que si le kit est entre D'AUTRES mains :
+         * là, c'est un transfert, avec l'état constaté des deux côtés.
+         */
+        if ($kit->volontaire_detenteur_id !== null
+            && $kit->volontaire_detenteur_id !== $destinataire->id) {
             throw new \DomainException(
                 "Le kit {$kit->reference} est déjà détenu par "
                 .($kit->detenteur?->matricule ?? 'un autre agent')
@@ -107,13 +126,13 @@ class ServiceMouvementsKit
             );
         }
 
-        $destinataire = $this->destinataire($donnees);
-
         // UN AGENT NE DÉTIENT QU'UN SEUL KIT. La base le garantit par un index
         // unique ; on le dit ici en français plutôt que de laisser remonter une
-        // erreur SQL à un agent de terrain.
+        // erreur SQL à un agent de terrain. Le kit qu'on lui remet à l'instant
+        // ne compte évidemment pas contre lui.
         $dejaDetenu = Kit::query()
             ->where('volontaire_detenteur_id', $destinataire->id)
+            ->whereKeyNot($kit->id)
             ->value('reference');
 
         if ($dejaDetenu) {

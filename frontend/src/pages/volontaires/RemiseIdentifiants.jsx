@@ -51,6 +51,18 @@ export function RemiseIdentifiants() {
     const bordereau = useAction(['remises']);
     const telechargement = useTelechargement();
 
+    /*
+     * LE NOM DE LA SESSION, proposé depuis le filtre de région.
+     *
+     * Le bordereau EST la liste des mots de passe d'une région : autant qu'il
+     * porte ce nom sans qu'on ait à le retaper. La proposition ne s'impose pas
+     * — dès qu'on écrit quelque chose, c'est ce qu'on a écrit qui vaut.
+     */
+    const regionChoisie = (regions.data ?? []).find((r) => String(r.id) === String(liste.filtres.region_id));
+    const sessionProposee = regionChoisie
+        ? `${regionChoisie.nom} — ${new Date().toLocaleDateString('fr-FR')}`
+        : '';
+
     const comptes = liste.data?.comptes;
     const lignes = comptes?.data ?? [];
     const repartition = liste.data?.repartition ?? {};
@@ -94,7 +106,10 @@ export function RemiseIdentifiants() {
         renvoi.oublierMessage();
 
         const resultat = await bordereau.lancer(() =>
-            api.agir('/comptes/remises/bordereau', { user_ids: [...choisis.keys()], session }),
+            api.agir('/comptes/remises/bordereau', {
+                user_ids: [...choisis.keys()],
+                session: session || sessionProposee,
+            }),
         );
 
         const fichier = resultat?.donnees?.fichier;
@@ -134,21 +149,46 @@ export function RemiseIdentifiants() {
                 ))}
             </div>
 
-            <div className="flex flex-wrap items-center justify-between gap-3">
-                <p className="max-w-prose text-sm text-ardoise-600">
-                    L’état des accès s’imprime sans aucun mot de passe : c’est un document de suivi. Les mots de passe
-                    se remettent par le bordereau nominatif, contre signature.
-                </p>
-                <Bouton
-                    variante="secondaire"
-                    disabled={telechargement.enCours}
-                    onClick={() => telechargement.telecharger(
-                        avecParametres('/comptes/remises/etat-acces', liste.filtres),
-                        'etat-acces.pdf',
-                    )}
-                >
-                    {telechargement.enCours ? 'Préparation…' : 'État des accès (PDF)'}
-                </Bouton>
+            {/*
+              * DEUX DOCUMENTS, ET UN SEUL PORTE DES MOTS DE PASSE.
+              *
+              * La confusion coûte cher dans les deux sens : imprimer l'état des
+              * accès en croyant distribuer des identifiants, ou faire circuler
+              * un bordereau en croyant qu'il ne contient qu'un suivi. Les deux
+              * sont donc nommés par ce qu'ils contiennent, côte à côte.
+              */}
+            <div className="grid gap-3 sm:grid-cols-2">
+                <div className="rounded-lg border border-ardoise-200 bg-white px-4 py-3">
+                    <p className="text-sm font-semibold text-ardoise-900">État des accès — sans mot de passe</p>
+                    <p className="mt-1 text-sm text-ardoise-600">
+                        Qui dispose de son accès, et où en est la remise. Document de suivi, qui circule sans risque.
+                        Il reprend les filtres ci-dessous, région comprise.
+                    </p>
+                    <Bouton
+                        className="mt-3"
+                        variante="secondaire"
+                        disabled={telechargement.enCours}
+                        onClick={() => telechargement.telecharger(
+                            avecParametres('/comptes/remises/etat-acces', liste.filtres),
+                            'etat-acces.pdf',
+                        )}
+                    >
+                        {telechargement.enCours ? 'Préparation…' : 'Imprimer l’état des accès'}
+                    </Bouton>
+                </div>
+
+                <div className="rounded-lg border border-ocre-300 bg-ocre-50 px-4 py-3">
+                    <p className="text-sm font-semibold text-ocre-900">Bordereau nominatif — AVEC les mots de passe</p>
+                    <p className="mt-1 text-sm text-ocre-900">
+                        Le seul document qui porte un mot de passe par agent. Il en crée un NEUF pour chacun : l’ancien
+                        cesse aussitôt de fonctionner. À imprimer, distribuer contre signature, puis détruire.
+                    </p>
+                    <p className="mt-2 text-sm text-ocre-900">
+                        {peutAgir
+                            ? <>Filtrez la région, cochez les agents, puis générez-le ci-dessous.</>
+                            : <>Réservé à l’administration nationale.</>}
+                    </p>
+                </div>
             </div>
 
             <BarreFiltres onReinitialiser={liste.reinitialiser}>
@@ -239,15 +279,17 @@ export function RemiseIdentifiants() {
                             <Champ nom="session" libelle="Session de formation" erreurs={bordereau.erreur?.erreurs}>
                                 <Saisie
                                     id="session-bordereau"
-                                    value={session}
+                                    value={session || sessionProposee}
                                     onChange={(e) => setSession(e.target.value)}
                                     placeholder="Formation Bagassi — 18 septembre"
                                     maxLength={80}
                                     required
                                 />
                             </Champ>
-                            <Bouton type="submit" disabled={!session.trim() || bordereau.enCours || telechargement.enCours}>
-                                {bordereau.enCours || telechargement.enCours ? 'Préparation…' : 'Générer le bordereau PDF'}
+                            <Bouton type="submit" disabled={!(session || sessionProposee).trim() || bordereau.enCours || telechargement.enCours}>
+                                {bordereau.enCours || telechargement.enCours
+                                    ? 'Préparation…'
+                                    : `Générer le bordereau de ${nombre(choisis.size)} agents (avec mots de passe)`}
                             </Bouton>
                         </form>
                     </div>

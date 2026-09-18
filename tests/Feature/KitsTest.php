@@ -642,3 +642,54 @@ it("annonce le mouvement de kit parmi les types que le serveur sait recevoir", f
     expect($this->getJson('/api/v1/sync/types')->assertOk()->json('data.types'))
         ->toContain('mouvement_kit');
 });
+
+/**
+ * LA REMISE APRÈS VALIDATION D'UNE VAGUE.
+ *
+ * La validation ATTRIBUE le kit à son opérateur — c'est le tirage qui l'a
+ * désigné. La remise, elle, est l'acte PHYSIQUE : l'état constaté et les
+ * photos, seuls à engager la responsabilité de l'agent.
+ *
+ * Tant que la remise était refusée sur un kit déjà attribué, ce constat était
+ * impossible après toute validation, c'est-à-dire en pratique toujours.
+ */
+it('accepte la remise physique d\'un kit que la validation a déjà attribué', function () {
+    $operateur = $this->operateur->volontaire;
+
+    // Ce que fait la validation d'une vague : le parc reflète le tirage.
+    $this->kit->update([
+        'volontaire_detenteur_id' => $operateur->id,
+        'centre_courant_id' => $this->centre->id,
+    ]);
+
+    Sanctum::actingAs($this->admin);
+
+    $reponse = $this->postJson("/api/v1/kits/{$this->kit->id}/mouvements", [
+        'type' => 'remise',
+        'volontaire_destination_id' => $operateur->id,
+        'site_id' => $this->site->id,
+        'etat_constate' => 'bon',
+        'photo_source' => 'kits/remise-source.jpg',
+        'photo_destination' => 'kits/remise-destination.jpg',
+    ])->assertStatus(201);
+
+    expect($reponse->json('data.type'))->toBe('remise');
+    expect($this->kit->fresh()->volontaire_detenteur_id)->toBe($operateur->id);
+    expect($this->kit->fresh()->site_courant_id)->toBe($this->site->id);
+
+    // Le constat est bien au journal : c'est lui qui engage l'agent.
+    $mouvement = KitMouvement::query()->where('kit_id', $this->kit->id)->latest('id')->firstOrFail();
+    expect($mouvement->etat_constate)->toBe('bon');
+    expect($mouvement->photo_destination_chemin)->not->toBeNull();
+
+    // Et le kit d'un AUTRE agent reste, lui, hors de portée d'une remise.
+    $reponse = $this->postJson("/api/v1/kits/{$this->kit->id}/mouvements", [
+        'type' => 'remise',
+        'volontaire_destination_id' => $this->autreOperateur->volontaire->id,
+        'etat_constate' => 'bon',
+        'photo_source' => 'kits/remise-source.jpg',
+        'photo_destination' => 'kits/remise-destination.jpg',
+    ])->assertStatus(422);
+
+    expect($reponse->json('message'))->toContain('Passez par un transfert');
+});

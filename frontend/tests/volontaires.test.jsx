@@ -361,7 +361,7 @@ describe('Remise des identifiants', () => {
 
         const formulaire = screen.getByRole('form', { name: 'Générer un bordereau' });
         fireEvent.change(within(formulaire).getByLabelText('Session de formation'), { target: { value: 'Test mobile' } });
-        fireEvent.click(within(formulaire).getByRole('button', { name: 'Générer le bordereau PDF' }));
+        fireEvent.click(within(formulaire).getByRole('button', { name: /Générer le bordereau de/ }));
 
         await screen.findByText('Bordereau généré pour 2 volontaires.');
         expect(appels.agir).toHaveBeenCalledWith('/comptes/remises/bordereau', { user_ids: [31, 32], session: 'Test mobile' });
@@ -509,7 +509,7 @@ describe('État des accès', () => {
         monter(<RemiseIdentifiants />);
 
         fireEvent.change(await screen.findByLabelText('Recherche'), { target: { value: 'KABORE' } });
-        fireEvent.click(screen.getByRole('button', { name: 'État des accès (PDF)' }));
+        fireEvent.click(screen.getByRole('button', { name: /Imprimer l.état des accès/ }));
 
         await waitFor(() => expect(appels.telecharger).toHaveBeenCalledWith('/comptes/remises/etat-acces?recherche=KABORE'));
     });
@@ -530,7 +530,7 @@ describe('Bordereau par région', () => {
 
         await waitFor(() => expect(appels.lire).toHaveBeenLastCalledWith('/comptes/remises?region_id=7&page=1'));
 
-        fireEvent.click(screen.getByRole('button', { name: 'État des accès (PDF)' }));
+        fireEvent.click(screen.getByRole('button', { name: /Imprimer l.état des accès/ }));
 
         await waitFor(() => expect(appels.telecharger)
             .toHaveBeenCalledWith('/comptes/remises/etat-acces?region_id=7'));
@@ -543,5 +543,39 @@ describe('Bordereau par région', () => {
 
         await screen.findByText('PNVB-OPK000001');
         expect(screen.queryByLabelText('Région')).not.toBeInTheDocument();
+    });
+});
+
+describe('Les deux documents', () => {
+    it('nomme ce que chacun contient, et propose la région comme nom de session', async () => {
+        appels.lire.mockImplementation(lireRemises(
+            { courriel_simule: true, sms_simule: true },
+            [{ id: 7, nom: 'Bankui' }, { id: 8, nom: 'Nando' }],
+        ));
+        appels.agir.mockResolvedValue({
+            message: 'Bordereau généré pour 2 volontaires.',
+            donnees: { fichier: 'bordereau-bankui.pdf' },
+        });
+        appels.telecharger.mockResolvedValue({ fichier: new Blob(['%PDF']), nom: null });
+
+        monter(<RemiseIdentifiants />);
+
+        // Les deux documents se distinguent à la lecture, sans ambiguïté.
+        expect(await screen.findByText('État des accès — sans mot de passe')).toBeInTheDocument();
+        expect(screen.getByText('Bordereau nominatif — AVEC les mots de passe')).toBeInTheDocument();
+
+        fireEvent.change(await screen.findByLabelText('Région'), { target: { value: '7' } });
+        fireEvent.click(await screen.findByLabelText('Cocher toute la page'));
+
+        const formulaire = screen.getByRole('form', { name: 'Générer un bordereau' });
+        // Le nom de session est proposé depuis la région : rien à retaper.
+        expect(within(formulaire).getByLabelText('Session de formation').value).toContain('Bankui');
+
+        fireEvent.click(within(formulaire).getByRole('button', { name: /Générer le bordereau de 2 agents/ }));
+
+        await waitFor(() => expect(appels.agir).toHaveBeenCalledWith('/comptes/remises/bordereau', {
+            user_ids: [31, 32],
+            session: expect.stringContaining('Bankui'),
+        }));
     });
 });
