@@ -72,6 +72,8 @@ export function FicheKit() {
                 </Rubriques>
             </Bloc>
 
+            {auth.peut('kits.gerer') && <CorrigerKit kit={data} onFait={refetch} />}
+
             {auth.peut('kits.declarer_mouvement') && <DeclarerMouvement kit={data} onFait={refetch} />}
 
             <Bloc titre="Historique des mouvements" precision="Le plus récent en premier">
@@ -246,6 +248,109 @@ function DeclarerMouvement({ kit, onFait }) {
                         </p>
                     )}
                 </div>
+            </form>
+        </Bloc>
+    );
+}
+
+/**
+ * CORRIGER LA FICHE D'UN KIT — et rien de plus.
+ *
+ * Trois choses seulement se corrigent ici : la COMPOSITION (un élément
+ * remplacé, un oubli à l'inventaire), l'ÉTAT MATÉRIEL et le marquage ZONE À
+ * DÉFIS.
+ *
+ * Ce qui ne s'y corrige PAS, et c'est délibéré :
+ *   - le DÉTENTEUR, qui ne change que par un mouvement tracé ;
+ *   - la RÉFÉRENCE, qui identifie le kit pour toute sa vie : la changer
+ *     couperait la fiche de son propre historique ;
+ *   - une PERTE ou un VOL, qui se déclarent par un mouvement avec constat.
+ *     Le serveur refuse d'ailleurs ces états ici, et le dit.
+ */
+function CorrigerKit({ kit, onFait }) {
+    const [ouvert, setOuvert] = useState(false);
+    const action = useAction(['kit', 'kits', 'kits-synthese']);
+    const [champs, setChamps] = useState({
+        composition: (kit.composition ?? []).join('\n'),
+        etat: kit.etat,
+        zone_defis: Boolean(kit.est_permanent_zone_defis),
+    });
+
+    async function corriger(evenement) {
+        evenement.preventDefault();
+
+        const composition = champs.composition
+            .split('\n')
+            .map((ligne) => ligne.trim())
+            .filter((ligne) => ligne !== '');
+
+        const resultat = await action.lancer(() =>
+            api.modifier(`/kits/${kit.id}`, {
+                composition,
+                etat: champs.etat,
+                est_permanent_zone_defis: champs.zone_defis,
+            }),
+        );
+
+        if (resultat) {
+            onFait();
+            setOuvert(false);
+        }
+    }
+
+    if (!ouvert) {
+        return (
+            <div className="flex justify-end">
+                <Bouton variante="secondaire" onClick={() => setOuvert(true)}>Corriger la fiche</Bouton>
+            </div>
+        );
+    }
+
+    return (
+        <Bloc
+            titre="Corriger la fiche du kit"
+            precision="La référence et le détenteur ne se corrigent pas : l’un identifie le kit, l’autre ne change que par un mouvement."
+            actions={<Bouton variante="secondaire" onClick={() => setOuvert(false)}>Annuler</Bouton>}
+        >
+            {action.erreur && !action.erreur.estValidation && <div className="mb-4"><Echec erreur={action.erreur} /></div>}
+
+            <form onSubmit={corriger} aria-label="Corriger la fiche du kit" className="space-y-4">
+                <Champ
+                    nom="composition"
+                    libelle="Composition"
+                    erreurs={action.erreur?.erreurs}
+                    aide="Un élément par ligne. C’est cette liste que l’agent constate à chaque remise."
+                >
+                    <Texte
+                        value={champs.composition}
+                        onChange={(e) => setChamps((c) => ({ ...c, composition: e.target.value }))}
+                        rows={5}
+                    />
+                </Champ>
+                <Champ
+                    nom="etat"
+                    libelle="État matériel"
+                    erreurs={action.erreur?.erreurs}
+                    aide="Une perte ou un vol se déclare par un mouvement, avec son constat — pas ici."
+                >
+                    <Liste value={champs.etat} onChange={(e) => setChamps((c) => ({ ...c, etat: e.target.value }))}>
+                        <option value="fonctionnel">Fonctionnel</option>
+                        <option value="panne">En panne</option>
+                        <option value="reforme">Réformé</option>
+                    </Liste>
+                </Champ>
+                <label className="flex items-center gap-2 text-sm text-ardoise-800">
+                    <input
+                        type="checkbox"
+                        checked={champs.zone_defis}
+                        onChange={(e) => setChamps((c) => ({ ...c, zone_defis: e.target.checked }))}
+                        className="h-4 w-4 rounded border-ardoise-400"
+                    />
+                    Kit d’un centre permanent en zone à défis sécuritaires
+                </label>
+                <Bouton type="submit" disabled={action.enCours}>
+                    {action.enCours ? 'Enregistrement…' : 'Enregistrer la correction'}
+                </Bouton>
             </form>
         </Bloc>
     );
