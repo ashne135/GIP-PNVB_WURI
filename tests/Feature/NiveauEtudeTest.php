@@ -241,3 +241,46 @@ it('interdit la correction et le retrait à qui n\'a pas le droit', function () 
         'volontaire_ids' => [$fiche->id], 'motif' => 'Sans le droit',
     ])->assertForbidden();
 });
+
+/**
+ * UNE FICHE « À QUALIFIER » NE DOIT RIEN FAIRE TOMBER.
+ *
+ * Elle a un volontaire, mais pas de catégorie. Trois chemins l'oubliaient et
+ * échouaient en erreur 500 : le bordereau de remise, le profil rendu au
+ * téléphone, et le recalcul nocturne des accès. Le premier a été constaté en
+ * production le 18/09/2026.
+ */
+it('imprime un bordereau qui contient une fiche sans catégorie', function () {
+    $fiche = ficheNiveau('+22670088030', 'licence');
+    $fiche->user->update(['statut_compte' => StatutCompte::Actif->value]);
+
+    $reponse = $this->postJson('/api/v1/comptes/remises/bordereau', [
+        'user_ids' => [$fiche->user_id],
+        'session' => 'Remise du jour',
+    ])->assertOk();
+
+    expect($reponse->json('data.lignes'))->toBe(1);
+    expect($fiche->fresh()->categorie)->toBeNull();
+});
+
+it('rend le profil d\'une fiche sans catégorie au lieu d\'une erreur', function () {
+    $fiche = ficheNiveau('+22670088031', 'licence');
+    $fiche->user->update(['statut_compte' => StatutCompte::Actif->value, 'doit_changer_mot_de_passe' => false]);
+    $fiche->user->consentements()->create(['version_charte' => '2026.1', 'accepte_le' => now()]);
+
+    Sanctum::actingAs($fiche->user);
+
+    $reponse = $this->getJson('/api/v1/moi')->assertOk();
+
+    expect($reponse->json('data.volontaire.categorie'))->toBeNull();
+    expect($reponse->json('data.volontaire.categorie_libelle'))->toBe('À qualifier');
+    expect($reponse->json('data.volontaire.affectation_tournante'))->toBeFalse();
+});
+
+it('recalcule l\'accès d\'une fiche sans catégorie sans s\'interrompre', function () {
+    $fiche = ficheNiveau('+22670088032', 'licence');
+
+    app(App\Services\Comptes\ServiceCycleDeVieCompte::class)->recalculer($fiche);
+
+    expect($fiche->user->fresh()->statut_compte)->toBe(StatutCompte::Inactif);
+});

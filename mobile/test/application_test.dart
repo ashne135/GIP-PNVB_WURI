@@ -6,6 +6,7 @@ import 'package:volontaires/application.dart';
 import 'package:volontaires/donnees/coffre.dart';
 import 'package:volontaires/donnees/depot_file.dart';
 import 'package:volontaires/donnees/depot_profil.dart';
+import 'package:volontaires/outils/itineraire.dart';
 import 'package:volontaires/session/controleur_session.dart';
 
 import 'doublures.dart';
@@ -16,6 +17,8 @@ import 'doublures.dart';
 /// faisait échouer l'affichage dès le premier écran, sur le téléphone : aucun
 /// test n'affichait l'application complète, avec son thème et ses textes.
 void main() {
+  _testsItineraire();
+
   final horsLigne = MockClient((_) async => throw http.ClientException('Network is unreachable'));
 
   const profil = {
@@ -113,5 +116,29 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(essais, 2);
+  });
+}
+
+/// L'ITINÉRAIRE VERS UN SITE (demande du client, 18/09/2026).
+///
+/// Ce qu'on protège : sans coordonnées exploitables, aucun trajet n'est
+/// proposé — envoyer un agent vers un point approximatif est pire que de ne
+/// rien proposer du tout.
+void _testsItineraire() {
+  group('l’itinéraire vers un site', () {
+    test('lit les coordonnées, quel que soit le format rendu par l’API', () {
+      expect(Itineraire.coordonnees({'latitude': 11.9456, 'longitude': -3.0021}), (11.9456, -3.0021));
+      // L'API sérialise les décimaux en chaînes : le cas doit passer aussi.
+      expect(Itineraire.coordonnees({'latitude': '11.9456', 'longitude': '-3.0021'}), (11.9456, -3.0021));
+    });
+
+    test('ne propose rien sans coordonnées utilisables', () {
+      expect(Itineraire.coordonnees(null), isNull);
+      expect(Itineraire.coordonnees(const {}), isNull);
+      expect(Itineraire.coordonnees(const {'latitude': null, 'longitude': null}), isNull);
+      expect(Itineraire.coordonnees(const {'latitude': 'abc', 'longitude': 'def'}), isNull);
+      // 0,0 : un point de l'Atlantique, jamais un site du Burkina Faso.
+      expect(Itineraire.coordonnees(const {'latitude': 0, 'longitude': 0}), isNull);
+    });
   });
 }

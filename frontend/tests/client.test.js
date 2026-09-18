@@ -257,3 +257,34 @@ describe('les fichiers publics', () => {
         expect(fichierPublic('logo-pnvb.jpg').startsWith('//')).toBe(false);
     });
 });
+
+/**
+ * L'ITINÉRAIRE VERS UN SITE (demande du client, 18/09/2026).
+ *
+ * Un site d'enregistrement est souvent dans un village sans adresse : seules
+ * ses coordonnées y mènent. Sans elles, on ne fabrique aucun lien — un trajet
+ * vers un point approximatif enverrait un chef d'antenne à des kilomètres.
+ */
+describe('l’itinéraire vers un site', () => {
+    it('ouvre Google Maps sur la destination, et rien d’autre', async () => {
+        const { lienItineraire, lienPosition } = await import('../src/outils/itineraire');
+
+        expect(lienItineraire(11.9456, -3.0021)).toBe(
+            'https://www.google.com/maps/dir/?api=1&destination=11.9456,-3.0021&travelmode=driving',
+        );
+        expect(lienPosition('11.9456', '-3.0021')).toBe(
+            'https://www.google.com/maps/search/?api=1&query=11.9456,-3.0021',
+        );
+    });
+
+    it('ne fabrique aucun lien sans coordonnées', async () => {
+        const { lienItineraire } = await import('../src/outils/itineraire');
+
+        expect(lienItineraire(null, null)).toBeNull();
+        expect(lienItineraire(undefined, -3.0021)).toBeNull();
+        expect(lienItineraire('', '')).toBeNull();
+        // 0, 0 : le point « nul » de l'Atlantique, jamais un site du Burkina.
+        expect(lienItineraire(0, 0)).toBeNull();
+        expect(lienItineraire('abc', 'def')).toBeNull();
+    });
+});

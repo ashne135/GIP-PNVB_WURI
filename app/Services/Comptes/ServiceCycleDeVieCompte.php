@@ -204,6 +204,15 @@ class ServiceCycleDeVieCompte
 
         // Entre deux vagues : DISPONIBLE pour les catégories tournantes,
         // FERMÉ pour l'assistant, qui n'existe que sur sa localité.
+        //
+        // SANS CATÉGORIE — une fiche importée qui attend sa qualification — on
+        // ne peut pas trancher : elle reste INACTIVE, comme à sa création. Sans
+        // ce cas, le recalcul nocturne s'interrompait sur la première fiche à
+        // qualifier, et les accès de tous les suivants n'étaient plus mis à jour.
+        if ($volontaire->categorie === null) {
+            return StatutCompte::Inactif;
+        }
+
         return $volontaire->categorie->estTournante()
             ? StatutCompte::Disponible
             : StatutCompte::Ferme;

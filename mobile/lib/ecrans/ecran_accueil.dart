@@ -5,6 +5,7 @@ import '../composants/gros_bouton.dart';
 import '../donnees/depot_travail.dart';
 import '../l10n/textes.dart';
 import '../outils/horodatage.dart';
+import '../outils/itineraire.dart';
 import '../session/controleur_session.dart';
 import '../sync/moteur_synchronisation.dart';
 import '../travail/service_journee.dart';
@@ -72,6 +73,11 @@ class EcranAccueil extends StatelessWidget {
                       style: theme.textTheme.titleMedium,
                     ),
                     if (site['kit_present_aujourdhui'] == false) Text(textes.accueilKitAbsent),
+                    const SizedBox(height: 12),
+                    // S'Y RENDRE : ces sites sont dans des villages sans
+                    // adresse. Sans coordonnées, on ne propose rien plutôt que
+                    // d'envoyer l'agent vers un point approximatif.
+                    _BoutonItineraire(site: site),
                   ],
                 ],
         ),
@@ -352,6 +358,40 @@ class _Rubrique extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// L'ITINÉRAIRE VERS LE SITE DU JOUR.
+///
+/// Le trajet se calcule dans l'application de cartes du téléphone, à partir de
+/// la position de l'agent : la plateforme n'en sait rien et n'en garde rien.
+/// Elle ne fournit que la destination.
+class _BoutonItineraire extends StatelessWidget {
+  const _BoutonItineraire({required this.site});
+
+  final Map<String, dynamic> site;
+
+  @override
+  Widget build(BuildContext context) {
+    final textes = Textes.of(context);
+    final point = Itineraire.coordonnees(site);
+
+    if (point == null) {
+      return Text(textes.accueilItineraireImpossible);
+    }
+
+    return GrosBouton(
+      icone: Icons.directions,
+      libelle: textes.accueilItineraire,
+      secondaire: true,
+      onPressed: () async {
+        final ouvert = await Itineraire.ouvrir(point.$1, point.$2);
+
+        if (!ouvert && context.mounted) {
+          afficherConfirmation(context, textes.itineraireEchec, succes: false);
+        }
+      },
     );
   }
 }

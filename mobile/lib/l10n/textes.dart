@@ -291,6 +291,24 @@ abstract class Textes {
   /// **'Le kit ne passe pas sur votre site aujourd’hui.'**
   String get accueilKitAbsent;
 
+  /// No description provided for @accueilItineraire.
+  ///
+  /// In fr, this message translates to:
+  /// **'Itinéraire vers le site'**
+  String get accueilItineraire;
+
+  /// No description provided for @accueilItineraireImpossible.
+  ///
+  /// In fr, this message translates to:
+  /// **'Ce site n’a pas de coordonnées : aucun itinéraire possible.'**
+  String get accueilItineraireImpossible;
+
+  /// No description provided for @itineraireEchec.
+  ///
+  /// In fr, this message translates to:
+  /// **'Aucune application de cartes n’a pu s’ouvrir sur ce téléphone.'**
+  String get itineraireEchec;
+
   /// No description provided for @accueilInformationsDu.
   ///
   /// In fr, this message translates to:

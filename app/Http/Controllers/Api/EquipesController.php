@@ -183,7 +183,7 @@ class EquipesController extends Controller
         $tournees = TourneeSite::query()
             ->whereIn('affectation_operateur_id', $lignes->pluck('id')->all())
             ->couvrant($date)
-            ->with('site:id,code,nom')
+            ->with('site:id,code,nom,latitude,longitude')
             ->get()
             ->keyBy('affectation_operateur_id');
 
@@ -195,7 +195,7 @@ class EquipesController extends Controller
             : Site::query()
                 ->whereIn('localite_id', $assistants->pluck('volontaire.localite_id')->filter()->all())
                 ->whereIn('centre_id', $assistants->pluck('centre_id')->filter()->all())
-                ->get(['id', 'code', 'nom', 'localite_id', 'centre_id']);
+                ->get(['id', 'code', 'nom', 'localite_id', 'centre_id', 'latitude', 'longitude']);
 
         foreach ($lignes as $affectation) {
             $site = match ($affectation->role_terrain) {
@@ -209,7 +209,13 @@ class EquipesController extends Controller
                 default => null,
             };
 
-            $affectation->setAttribute('site_du_jour', $site?->only(['id', 'code', 'nom']));
+            // Les coordonnées accompagnent le site : c'est avec elles, et
+            // elles seules, qu'on trace un itinéraire vers un village sans
+            // adresse (demande du client, 18/09/2026).
+            $affectation->setAttribute(
+                'site_du_jour',
+                $site?->only(['id', 'code', 'nom', 'latitude', 'longitude'])
+            );
         }
     }
 }

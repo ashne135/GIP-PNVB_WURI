@@ -39,10 +39,13 @@ class UtilisateurConnecteResource extends JsonResource
             'volontaire' => $volontaire ? [
                 'id' => $volontaire->id,
                 'matricule' => $volontaire->matricule,
-                'categorie' => $volontaire->categorie->value,
-                'categorie_libelle' => $volontaire->categorie->libelle(),
+                // La catégorie peut être NULLE : une fiche importée sans profil
+                // attend sa qualification. Le téléphone doit pouvoir afficher ce
+                // profil-là plutôt que de recevoir une erreur 500.
+                'categorie' => $volontaire->categorie?->value,
+                'categorie_libelle' => $volontaire->categorie?->libelle() ?? 'À qualifier',
                 'statut' => $volontaire->statut->value,
-                'affectation_tournante' => $volontaire->categorie->estTournante(),
+                'affectation_tournante' => $volontaire->categorie?->estTournante() ?? false,
                 'localite_id' => $volontaire->localite_id,
             ] : null,
 

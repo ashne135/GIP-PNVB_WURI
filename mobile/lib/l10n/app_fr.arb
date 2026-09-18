@@ -49,6 +49,9 @@
     "placeholders": { "site": { "type": "String" } }
   },
   "accueilKitAbsent": "Le kit ne passe pas sur votre site aujourd’hui.",
+  "accueilItineraire": "Itinéraire vers le site",
+  "accueilItineraireImpossible": "Ce site n’a pas de coordonnées : aucun itinéraire possible.",
+  "itineraireEchec": "Aucune application de cartes n’a pu s’ouvrir sur ce téléphone.",
   "accueilInformationsDu": "Informations du {date}",
   "@accueilInformationsDu": {
     "placeholders": { "date": { "type": "String" } }

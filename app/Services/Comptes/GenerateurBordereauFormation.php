@@ -60,7 +60,12 @@ class GenerateurBordereauFormation
             $lignes[] = [
                 'matricule' => $utilisateur->volontaire?->matricule ?? '—',
                 'nom_complet' => $utilisateur->nomComplet(),
-                'categorie' => $utilisateur->volontaire?->categorie->libelle() ?? '—',
+                // DEUX points d'interrogation, et le second compte autant que le
+                // premier : une fiche importée sans profil a bien un volontaire,
+                // mais PAS de catégorie. Sans lui, le bordereau d'une session
+                // entière échouait en erreur 500 dès qu'un agent était encore
+                // « à qualifier ».
+                'categorie' => $utilisateur->volontaire?->categorie?->libelle() ?? 'À qualifier',
                 'identifiant' => NormalisateurTelephone::pourAffichage($utilisateur->telephone),
                 'mot_de_passe' => $motDePasse,
             ];

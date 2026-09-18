@@ -122,6 +122,17 @@ class TextesFr extends Textes {
       'Le kit ne passe pas sur votre site aujourd’hui.';
 
   @override
+  String get accueilItineraire => 'Itinéraire vers le site';
+
+  @override
+  String get accueilItineraireImpossible =>
+      'Ce site n’a pas de coordonnées : aucun itinéraire possible.';
+
+  @override
+  String get itineraireEchec =>
+      'Aucune application de cartes n’a pu s’ouvrir sur ce téléphone.';
+
+  @override
   String accueilInformationsDu(String date) {
     return 'Informations du $date';
   }

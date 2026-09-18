@@ -11,6 +11,7 @@ import { Bouton, Champ, Liste, Texte } from '../composants/Champs';
 import { Chargement } from '../composants/Chargement';
 import { Echec, Succes, Vide } from '../composants/Etats';
 import { aujourdhui, nomDe } from '../outils/format';
+import { lienItineraire } from '../outils/itineraire';
 
 const roles = {
     superviseur: { libelle: 'Superviseur', ton: 'info' },
@@ -230,7 +231,31 @@ function Centres({ affectation }) {
  */
 function SiteDuJour({ affectation }) {
     if (affectation.site_du_jour) {
-        return affectation.site_du_jour.nom;
+        const site = affectation.site_du_jour;
+        const itineraire = lienItineraire(site.latitude, site.longitude);
+
+        return (
+            <>
+                {site.nom}
+                {/*
+                  * L'ITINÉRAIRE, pour une visite de suivi : ces sites sont dans
+                  * des villages sans adresse, et seules leurs coordonnées y
+                  * mènent. Sans coordonnées, pas de lien — mieux vaut rien
+                  * qu'un trajet vers un point approximatif.
+                  */}
+                {itineraire && (
+                    <a
+                        href={itineraire}
+                        target="_blank"
+                        rel="noreferrer noopener"
+                        className="ml-2 text-xs text-pnvb-800 underline"
+                        title={`Itinéraire vers ${site.nom}`}
+                    >
+                        Itinéraire
+                    </a>
+                )}
+            </>
+        );
     }
 
     if (affectation.role_terrain === 'superviseur') {

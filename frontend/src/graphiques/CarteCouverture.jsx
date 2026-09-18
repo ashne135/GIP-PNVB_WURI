@@ -5,6 +5,7 @@ import 'leaflet.markercluster/dist/MarkerCluster.css';
 import 'leaflet.markercluster/dist/MarkerCluster.Default.css';
 import { CLASSES_COUVERTURE, classeCouverture, viz } from './viz';
 import { etatCarte } from './etatCarte';
+import { lienItineraire } from '../outils/itineraire';
 
 /**
  * LA CARTE DE LA COUVERTURE.
@@ -148,6 +149,31 @@ export function CarteCouverture({ regions = [], sitesCarte = null }) {
                 marqueur.bindTooltip(
                     infobulle([`${site.code} — ${site.nom}`, site.couvert ? 'Enregistrements réalisés' : 'Aucun enregistrement']),
                 );
+
+                /*
+                 * AU CLIC, L'ITINÉRAIRE : ces sites sont dans des villages sans
+                 * adresse, et c'est depuis la carte qu'on prépare une visite de
+                 * suivi. L'infobulle du survol, elle, ne change pas.
+                 */
+                const itineraire = lienItineraire(site.lat, site.lng);
+
+                if (itineraire) {
+                    // La bulle se construit en éléments du document, comme
+                    // l'infobulle : aucun texte de la base ne devient du HTML.
+                    const bulle = infobulle([site.nom, site.code]);
+                    const lien = document.createElement('a');
+
+                    lien.href = itineraire;
+                    lien.target = '_blank';
+                    lien.rel = 'noreferrer noopener';
+                    lien.textContent = 'Itinéraire (Google Maps)';
+                    lien.style.display = 'inline-block';
+                    lien.style.marginTop = '6px';
+                    lien.style.textDecoration = 'underline';
+                    bulle.appendChild(lien);
+
+                    marqueur.bindPopup(bulle);
+                }
 
                 amas.addLayer(marqueur);
                 limites.extend([site.lat, site.lng]);

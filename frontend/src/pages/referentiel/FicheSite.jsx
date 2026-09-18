@@ -11,6 +11,7 @@ import { Chargement } from '../../composants/Chargement';
 import { Echec, Succes } from '../../composants/Etats';
 import { humaniser, nombre } from '../../outils/format';
 import { statut, statutsSite } from '../../domaine/referentiel';
+import { lienItineraire } from '../../outils/itineraire';
 
 /**
  * LA FICHE D'UN SITE.
@@ -68,9 +69,28 @@ export function FicheSite() {
                     <Rubrique libelle="Ordre de tournée">{data.ordre_tournee}</Rubrique>
                     <Rubrique libelle="Rayon de la zone">{data.rayon_zone_metres != null ? `${nombre(data.rayon_zone_metres)} m` : null}</Rubrique>
                     <Rubrique libelle="Coordonnées" pleineLargeur>
-                        {data.latitude != null && data.longitude != null
-                            ? `${data.latitude}, ${data.longitude}`
-                            : 'Non renseignées : le site n’apparaît pas sur la carte.'}
+                        {lienItineraire(data.latitude, data.longitude)
+                            ? (
+                                <>
+                                    <span className="font-mono">{data.latitude}, {data.longitude}</span>
+                                    {/*
+                                      * L'ITINÉRAIRE, pour une visite de suivi : un site de
+                                      * village n'a pas d'adresse, seules ses coordonnées
+                                      * mènent au bon endroit. Google Maps calcule le trajet
+                                      * depuis la position du visiteur ; nous ne lui envoyons
+                                      * que la destination.
+                                      */}
+                                    <a
+                                        href={lienItineraire(data.latitude, data.longitude)}
+                                        target="_blank"
+                                        rel="noreferrer noopener"
+                                        className="ml-3 inline-flex items-center gap-1 rounded border border-pnvb-300 px-2.5 py-1 text-sm font-medium text-pnvb-800 hover:bg-pnvb-50"
+                                    >
+                                        Itinéraire (Google Maps)
+                                    </a>
+                                </>
+                            )
+                            : 'Non renseignées : le site n’apparaît pas sur la carte, et aucun itinéraire n’est possible.'}
                     </Rubrique>
                 </Rubriques>
             </Bloc>
