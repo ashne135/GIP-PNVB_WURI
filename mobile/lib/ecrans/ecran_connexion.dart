@@ -61,6 +61,19 @@ class _EtatEcranConnexion extends State<EcranConnexion> {
     return CadreEcran(
       titre: textes.connexionTitre,
       enfants: [
+        // Le logo du Programme : l'agent doit reconnaître d'un coup d'œil
+        // l'application officielle, sur un téléphone qui en porte cinquante.
+        Center(
+          child: Image.asset(
+            'assets/logo-pnvb.jpg',
+            width: 120,
+            height: 120,
+            fit: BoxFit.contain,
+            // Une image qui manque ne doit pas empêcher de se connecter.
+            errorBuilder: (_, _, _) => const SizedBox.shrink(),
+          ),
+        ),
+        const SizedBox(height: 20),
         Text(textes.connexionReseauRequis, style: Theme.of(context).textTheme.bodyLarge),
         const SizedBox(height: 24),
         // Le message général quand aucun champ ne peut le porter : mauvais mot

@@ -449,6 +449,7 @@ Route::prefix('v1')->name('api.')->group(function () {
                 Route::get('/', [TourneesController::class, 'index'])->name('index');
                 Route::get('{tournee}/operateurs', [TourneesController::class, 'operateurs'])
                     ->name('operateurs');
+                Route::post('/', [TourneesController::class, 'programmer'])->name('programmer');
                 Route::put('{tournee}', [TourneesController::class, 'corriger'])->name('corriger');
                 Route::put('{tournee}/operateur', [TourneesController::class, 'reaffecter'])
                     ->name('reaffecter');

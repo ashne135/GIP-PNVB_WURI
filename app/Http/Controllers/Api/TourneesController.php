@@ -6,9 +6,11 @@ use App\Enums\CategorieVolontaire;
 use App\Enums\StatutAffectation;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Tournees\CorrigerTourneeRequest;
+use App\Http\Requests\Tournees\ProgrammerTourneeRequest;
 use App\Http\Requests\Tournees\ReaffecterOperateurRequest;
 use App\Http\Responses\ReponseApi;
 use App\Models\Affectation;
+use App\Models\Site;
 use App\Models\TourneeSite;
 use App\Services\Affectation\ServiceTournees;
 use Illuminate\Http\JsonResponse;
@@ -62,6 +64,46 @@ class TourneesController extends Controller
         return ReponseApi::succes(
             $passages->total() === 0 ? 'Aucun passage ne correspond.' : 'Passages récupérés.',
             $passages
+        );
+    }
+
+    /**
+     * PROGRAMMER UN PASSAGE.
+     *
+     * Le tirage désigne qui travaille dans quel centre ; il ne dit pas sur quel
+     * site le kit se trouve tel jour. C'est ce passage qui le dit — et sans
+     * lui, un opérateur n'a pas de site du jour, donc ni signal d'arrivée ni
+     * feuille de présence rattachables.
+     */
+    public function programmer(ProgrammerTourneeRequest $requete): JsonResponse
+    {
+        $this->authorize('create', TourneeSite::class);
+
+        $valide = $requete->validated();
+
+        // Le périmètre vaut aussi pour la création : un chef d'antenne ne
+        // programme pas un passage dans la région voisine.
+        $site = Site::query()->findOrFail($valide['site_id']);
+
+        abort_unless(
+            Site::query()->perimetre($requete->user())->whereKey($site->id)->exists(),
+            403
+        );
+
+        try {
+            $passage = $this->tournees->creer($valide, $requete->user());
+        } catch (\DomainException $e) {
+            return ReponseApi::echec($e->getMessage(), null, 422);
+        }
+
+        $du = $passage->date_debut?->format('d/m/Y');
+        $au = $passage->date_fin?->format('d/m/Y');
+
+        return ReponseApi::succes(
+            "Passage programmé : le kit couvre {$passage->site?->nom} à partir du {$du}"
+            .($au ? " jusqu'au {$au}." : ', sans date de fin.'),
+            $passage,
+            201
         );
     }
 

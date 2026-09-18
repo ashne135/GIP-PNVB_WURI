@@ -35,6 +35,102 @@ use Illuminate\Support\Carbon;
 class ServiceTournees
 {
     /**
+     * PROGRAMMER UN PASSAGE (décision du client, 18/09/2026).
+     *
+     * Rien ne créait de passage pour une vraie vague : la génération n'existait
+     * que dans le jeu de démonstration, si bien qu'après un tirage réel aucun
+     * opérateur n'avait de site du jour — et le téléphone ne pouvait rattacher
+     * ni signal d'arrivée ni feuille de présence.
+     *
+     * Le client a tranché pour la SAISIE : on programme les passages un par un,
+     * plutôt que de laisser un automate décider où vont les équipes.
+     *
+     * @param  array<string, mixed>  $donnees
+     */
+    public function creer(array $donnees, User $auteur): TourneeSite
+    {
+        $site = Site::query()->findOrFail($donnees['site_id']);
+        $affectation = array_key_exists('affectation_operateur_id', $donnees)
+            && $donnees['affectation_operateur_id'] !== null
+                ? Affectation::query()->findOrFail($donnees['affectation_operateur_id'])
+                : null;
+
+        $vague = \App\Models\VagueDeploiement::query()->findOrFail($donnees['vague_id']);
+
+        if ($vague->statut === StatutVague::Cloturee) {
+            throw new \DomainException(
+                "La vague « {$vague->code} » est clôturée : on n'y programme plus de passage."
+            );
+        }
+
+        // Le centre n'est pas saisi : il découle du site. Un kit ne couvre que
+        // les sites de son propre centre, et laisser choisir les deux ouvrirait
+        // la porte à un passage incohérent.
+        $centreId = (int) $site->centre_id;
+
+        $ouvertDansLaVague = \Illuminate\Support\Facades\DB::table('vague_centres')
+            ->where('vague_id', $vague->id)
+            ->where('centre_id', $centreId)
+            ->exists();
+
+        if (! $ouvertDansLaVague) {
+            throw new \DomainException(
+                "Le centre du site {$site->code} n'est pas ouvert dans la vague « {$vague->code} »."
+            );
+        }
+
+        if (TourneeSite::query()->where('vague_id', $vague->id)->where('site_id', $site->id)->exists()) {
+            throw new \DomainException(
+                "Le site {$site->code} est déjà couvert par un passage de cette vague."
+            );
+        }
+
+        $debut = $donnees['date_debut'];
+        $fin = $donnees['date_fin'] ?? null;
+
+        if ($fin !== null && Carbon::parse($fin)->lt(Carbon::parse($debut))) {
+            throw new \DomainException(
+                'La date de fin précède la date de début : le passage se terminerait avant d’avoir commencé.'
+            );
+        }
+
+        if ($affectation !== null) {
+            $this->verifierOperateur($affectation, $centreId);
+        }
+
+        $tournee = TourneeSite::query()->create([
+            'vague_id' => $vague->id,
+            'centre_id' => $centreId,
+            'site_id' => $site->id,
+            'affectation_operateur_id' => $affectation?->id,
+            // Le kit est celui de l'opérateur : il voyage avec lui, jamais seul.
+            'kit_id' => $affectation?->kit_id,
+            'ordre' => $donnees['ordre']
+                ?? ((int) TourneeSite::query()->where('centre_id', $centreId)
+                    ->where('vague_id', $vague->id)->max('ordre')) + 1,
+            'date_debut' => $debut,
+            'date_fin' => $fin,
+            'statut' => $donnees['statut'] ?? 'planifiee',
+        ]);
+
+        $tournee = $tournee->fresh(['site:id,code,nom', 'affectationOperateur.volontaire:id,user_id,matricule']);
+
+        activity('tournee_site')
+            ->causedBy($auteur)
+            ->performedOn($tournee)
+            ->withProperties([
+                'vague' => $vague->code,
+                'site' => $tournee->site?->code,
+                'operateur' => $tournee->affectationOperateur?->volontaire?->matricule,
+                'date_debut' => $debut,
+                'date_fin' => $fin,
+            ])
+            ->log('Passage de kit programmé');
+
+        return $tournee;
+    }
+
+    /**
      * @param  array<string, mixed>  $donnees
      */
     public function corriger(TourneeSite $tournee, array $donnees, User $auteur): TourneeSite
@@ -133,24 +229,7 @@ class ServiceTournees
         $this->refuserSiAttestee($tournee, 'en changer l’opérateur');
 
         if ($affectation !== null) {
-            // Les catégories sont étanches : un assistant ne tient jamais un kit.
-            if ($affectation->role_terrain !== CategorieVolontaire::Operateur) {
-                throw new \DomainException(
-                    'Seul un opérateur de kit peut tenir un passage : les catégories sont étanches.'
-                );
-            }
-
-            if ($affectation->statut !== StatutAffectation::Active) {
-                throw new \DomainException(
-                    "L'affectation de cet agent n'est pas active : elle ne peut pas tenir un passage."
-                );
-            }
-
-            if ((int) $affectation->centre_id !== (int) $tournee->centre_id) {
-                throw new \DomainException(
-                    "Cet opérateur n'est pas affecté au centre de ce passage."
-                );
-            }
+            $this->verifierOperateur($affectation, (int) $tournee->centre_id);
         }
 
         $ancien = $tournee->affectationOperateur?->volontaire?->matricule;
@@ -189,6 +268,29 @@ class ServiceTournees
             ->pluck('date_presence')
             ->map(fn ($date) => Carbon::parse($date)->format('d/m/Y'))
             ->all();
+    }
+
+    /** L'opérateur qui tient un passage : de la bonne catégorie, actif, et du bon centre. */
+    private function verifierOperateur(Affectation $affectation, int $centreId): void
+    {
+        // Les catégories sont étanches : un assistant ne tient jamais un kit.
+        if ($affectation->role_terrain !== CategorieVolontaire::Operateur) {
+            throw new \DomainException(
+                'Seul un opérateur de kit peut tenir un passage : les catégories sont étanches.'
+            );
+        }
+
+        if ($affectation->statut !== StatutAffectation::Active) {
+            throw new \DomainException(
+                "L'affectation de cet agent n'est pas active : elle ne peut pas tenir un passage."
+            );
+        }
+
+        if ((int) $affectation->centre_id !== $centreId) {
+            throw new \DomainException(
+                "Cet opérateur n'est pas affecté au centre de ce passage."
+            );
+        }
     }
 
     private function refuserSiAttestee(TourneeSite $tournee, string $acte): void

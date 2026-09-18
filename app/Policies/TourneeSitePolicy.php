@@ -29,6 +29,16 @@ class TourneeSitePolicy extends PolitiqueDeBase
      * validée — sont vérifiées par le service et non ici : une Policy protège
      * l'API, elle ne protège pas un appel interne.
      */
+    /**
+     * Programmer un passage : même droit que l'ajuster. Le périmètre, lui, se
+     * vérifie sur le SITE au moment de la création — il n'existe pas encore de
+     * passage sur lequel l'appliquer.
+     */
+    public function create(User $utilisateur): bool
+    {
+        return $this->peut($utilisateur, 'tournees.ajuster');
+    }
+
     public function ajuster(User $utilisateur, TourneeSite $tournee): bool
     {
         return $this->autoriser($utilisateur, 'tournees.ajuster', $tournee);

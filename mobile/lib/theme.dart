@@ -7,9 +7,14 @@ const double hauteurBouton = 60;
 ///
 /// Pensé pour un écran lu en plein soleil, par un utilisateur non
 /// informaticien : boutons de 60 px au moins, texte généreux, champs larges.
+/// LE VERT DU PROGRAMME, relevé sur le logo (`logo-pnvb.jpg`) et déjà porté
+/// par le back-office. L'application partait d'un bleu-vert sans rapport :
+/// deux outils du même dispositif n'ont aucune raison de ne pas se ressembler.
+const Color vertPnvb = Color(0xFF028428);
+
 ThemeData themePnvb() {
   final base = ThemeData(
-    colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF1F6F78)),
+    colorScheme: ColorScheme.fromSeed(seedColor: vertPnvb),
     useMaterial3: true,
   );
 

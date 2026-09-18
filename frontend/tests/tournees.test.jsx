@@ -16,12 +16,12 @@ import { Tournees } from '../src/pages/vagues/Tournees';
  *   - sans le droit de corriger, l'écran reste consultable mais n'offre aucun
  *     bouton — on ne promet pas une action que le serveur refusera.
  */
-const appels = vi.hoisted(() => ({ lire: vi.fn(), modifier: vi.fn() }));
+const appels = vi.hoisted(() => ({ lire: vi.fn(), modifier: vi.fn(), creer: vi.fn() }));
 const session = vi.hoisted(() => ({ valeur: {} }));
 
 vi.mock('../src/api/client', async (original) => ({
     ...(await original()),
-    api: { lire: appels.lire, modifier: appels.modifier },
+    api: appels,
 }));
 
 vi.mock('../src/auth/ContexteAuth', () => ({ useAuth: () => session.valeur }));
@@ -56,6 +56,24 @@ function afficher({ peutAjuster = true, ligne = passage() } = {}) {
                     { id: 11, code: 'BAN-C001-S01', nom: 'Site Assio' },
                     { id: 12, code: 'BAN-C001-S02', nom: 'Site Kana' },
                 ],
+            });
+        }
+
+        if (url.startsWith('/vagues')) {
+            return Promise.resolve({
+                data: [
+                    { id: 5, code: 'BAN-2026-V1', libelle: 'Première vague', statut: 'active' },
+                    { id: 6, code: 'BAN-2026-V0', libelle: 'Vague close', statut: 'cloturee' },
+                ],
+            });
+        }
+
+        if (url.startsWith('/equipes')) {
+            return Promise.resolve({
+                data: [{
+                    id: 44,
+                    volontaire: { matricule: 'PNVB-OPK000001', user: { nom: 'Kaboré', prenoms: 'Salif' } },
+                }],
             });
         }
 
@@ -165,5 +183,50 @@ describe('les passages des kits', () => {
         expect(appels.modifier).toHaveBeenCalledWith('/tournees/7/operateur', {
             affectation_operateur_id: null,
         });
+    });
+});
+
+describe('Programmer un passage', () => {
+    it('envoie le site et l’opérateur, sans jamais envoyer le centre', async () => {
+        appels.creer.mockResolvedValue({ message: 'Passage programmé : le kit couvre Site Kana.', donnees: {} });
+
+        afficher({ peutAjuster: true });
+
+        fireEvent.click(await screen.findByRole('button', { name: 'Programmer un passage' }));
+        const formulaire = screen.getByRole('form', { name: 'Programmer un passage' });
+
+        // Une vague clôturée ne se propose pas : le serveur la refuserait.
+        await within(formulaire).findByRole('option', { name: /BAN-2026-V1/ });
+        expect(within(formulaire).queryByRole('option', { name: /BAN-2026-V0/ })).not.toBeInTheDocument();
+
+        fireEvent.change(within(formulaire).getByLabelText('Vague'), { target: { value: '5' } });
+        fireEvent.change(within(formulaire).getByLabelText(/^Centre/), { target: { value: '3' } });
+
+        await within(formulaire).findByRole('option', { name: /Site Kana/ });
+        fireEvent.change(within(formulaire).getByLabelText('Site'), { target: { value: '11' } });
+
+        await within(formulaire).findByRole('option', { name: /PNVB-OPK000001/ });
+        fireEvent.change(within(formulaire).getByLabelText(/^Opérateur/), { target: { value: '44' } });
+        fireEvent.change(within(formulaire).getByLabelText('Premier jour'), { target: { value: '2026-09-20' } });
+
+        const bouton = within(formulaire).getByRole('button', { name: 'Programmer le passage' });
+        expect(bouton).toBeEnabled();
+        fireEvent.submit(formulaire);
+
+        await waitFor(() => expect(appels.creer).toHaveBeenCalledWith('/tournees', {
+            vague_id: 5,
+            site_id: 11,
+            affectation_operateur_id: 44,
+            date_debut: '2026-09-20',
+            date_fin: null,
+            statut: 'planifiee',
+        }));
+    });
+
+    it('ne propose pas de programmer sans le droit de corriger', async () => {
+        afficher({ peutAjuster: false });
+
+        await screen.findByText('Passages des kits');
+        expect(screen.queryByRole('button', { name: 'Programmer un passage' })).not.toBeInTheDocument();
     });
 });

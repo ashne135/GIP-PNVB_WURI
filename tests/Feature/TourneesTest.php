@@ -310,3 +310,110 @@ it('ne corrige plus les passages d’une vague clôturée', function () {
         ->assertStatus(422)
         ->assertJsonPath('message', fn ($message) => str_contains($message, 'clôturée'));
 });
+
+// ---------------------------------------------------------------------------
+// Programmer un passage (décision du client, 18/09/2026)
+// ---------------------------------------------------------------------------
+
+/** Le centre doit être ouvert dans la vague : c'est la vague qui décide où l'on déploie. */
+function ouvrirCentreDansVague($vague, $centre): void
+{
+    \Illuminate\Support\Facades\DB::table('vague_centres')->insertOrIgnore([
+        'vague_id' => $vague->id, 'centre_id' => $centre->id,
+        'date_ouverture' => $vague->date_debut_prevue, 'statut' => 'ouvert',
+        'created_at' => now(), 'updated_at' => now(),
+    ]);
+}
+
+it('programme un passage, avec son opérateur et le kit qu’il porte', function () {
+    ouvrirCentreDansVague($this->vague, $this->centre);
+    Sanctum::actingAs($this->admin);
+
+    $reponse = $this->postJson('/api/v1/tournees', [
+        'vague_id' => $this->vague->id,
+        'site_id' => $this->autreSite->id,
+        'affectation_operateur_id' => $this->affectation->id,
+        'date_debut' => now()->addDays(6)->toDateString(),
+        'date_fin' => now()->addDays(8)->toDateString(),
+    ])->assertStatus(201);
+
+    expect($reponse->json('message'))->toContain('Passage programmé');
+
+    $passage = TourneeSite::query()->where('site_id', $this->autreSite->id)->sole();
+    expect($passage->centre_id)->toBe($this->centre->id);
+    // Le kit voyage avec l'opérateur : il n'est pas saisi, il est déduit.
+    expect($passage->kit_id)->toBe($this->affectation->kit_id);
+    expect($passage->statut)->toBe('planifiee');
+    // Le rang suit le dernier passage du centre.
+    expect($passage->ordre)->toBe(2);
+});
+
+it('refuse un site déjà couvert, ou un centre absent de la vague', function () {
+    ouvrirCentreDansVague($this->vague, $this->centre);
+    Sanctum::actingAs($this->admin);
+
+    $this->postJson('/api/v1/tournees', [
+        'vague_id' => $this->vague->id,
+        'site_id' => $this->site->id,
+        'date_debut' => now()->toDateString(),
+    ])->assertStatus(422)->assertJsonPath('message', fn ($m) => str_contains($m, 'déjà couvert'));
+
+    // Un centre que la vague n'a pas ouvert : le passage n'a pas lieu d'être.
+    $autreCentre = centreTournee($this->commune, $this->region, 'BAN-BAGA-C009', 'Centre hors vague');
+    $siteHorsVague = siteTournee($autreCentre, 'BAN-BAGA-C009-S01', 'Site hors vague', 1);
+
+    $this->postJson('/api/v1/tournees', [
+        'vague_id' => $this->vague->id,
+        'site_id' => $siteHorsVague->id,
+        'date_debut' => now()->toDateString(),
+    ])->assertStatus(422)->assertJsonPath('message', fn ($m) => str_contains($m, "n'est pas ouvert dans la vague"));
+});
+
+it('refuse un opérateur d’un autre centre, et une date de fin qui précède le début', function () {
+    ouvrirCentreDansVague($this->vague, $this->centre);
+    Sanctum::actingAs($this->admin);
+
+    $this->postJson('/api/v1/tournees', [
+        'vague_id' => $this->vague->id,
+        'site_id' => $this->autreSite->id,
+        'date_debut' => now()->addDays(8)->toDateString(),
+        'date_fin' => now()->addDays(6)->toDateString(),
+    ])->assertStatus(422)->assertJsonPath('message', fn ($m) => str_contains($m, 'se terminerait avant'));
+
+    $autreCentre = centreTournee($this->commune, $this->region, 'BAN-BAGA-C010', 'Autre centre');
+    $operateurAilleurs = volontaireTournee('+22670008030', CategorieVolontaire::Operateur);
+    $affectationAilleurs = affectationTournee($this->vague, $operateurAilleurs, $autreCentre, 'operateur');
+
+    $this->postJson('/api/v1/tournees', [
+        'vague_id' => $this->vague->id,
+        'site_id' => $this->autreSite->id,
+        'affectation_operateur_id' => $affectationAilleurs->id,
+        'date_debut' => now()->addDays(6)->toDateString(),
+    ])->assertStatus(422)->assertJsonPath('message', fn ($m) => str_contains($m, "n'est pas affecté au centre"));
+});
+
+it('ferme la programmation à qui n’a pas le droit, et à la région voisine', function () {
+    ouvrirCentreDansVague($this->vague, $this->centre);
+
+    // Un superviseur consulte les passages, mais n'en programme aucun.
+    $superviseur = volontaireTournee('+22670008031', CategorieVolontaire::Superviseur);
+    Sanctum::actingAs($superviseur->user);
+
+    $this->postJson('/api/v1/tournees', [
+        'vague_id' => $this->vague->id,
+        'site_id' => $this->autreSite->id,
+        'date_debut' => now()->toDateString(),
+    ])->assertForbidden();
+
+    // Un chef d'antenne d'une autre région : le droit sans le périmètre.
+    $ailleurs = Region::query()->create(['code' => 'NAN', 'nom' => 'Nando', 'nombre_sites_alloues' => 10]);
+    $chefAilleurs = compteTournee('+22670008032', 'chef_antenne_regional');
+    $chefAilleurs->update(['region_id' => $ailleurs->id]);
+    Sanctum::actingAs($chefAilleurs);
+
+    $this->postJson('/api/v1/tournees', [
+        'vague_id' => $this->vague->id,
+        'site_id' => $this->autreSite->id,
+        'date_debut' => now()->toDateString(),
+    ])->assertForbidden();
+});

@@ -41,6 +41,7 @@ export function Tournees() {
     const auth = useAuth();
     const liste = useListe('tournees', '/tournees');
     const [choisi, setChoisi] = useState(null);
+    const [programmation, setProgrammation] = useState(false);
 
     const peutAjuster = auth.peut('tournees.ajuster');
 
@@ -59,7 +60,16 @@ export function Tournees() {
             <EnTetePage
                 titre="Passages des kits"
                 sousTitre="Où chaque kit se trouve, et qui le porte. Un kit couvre les sites de son centre l’un après l’autre."
+                actions={peutAjuster && (
+                    <Bouton onClick={() => { setChoisi(null); setProgrammation((ouvert) => !ouvert); }}>
+                        {programmation ? 'Fermer' : 'Programmer un passage'}
+                    </Bouton>
+                )}
             />
+
+            {programmation && peutAjuster && (
+                <ProgrammerPassage centres={centres.data?.data ?? []} onFini={() => setProgrammation(false)} />
+            )}
 
             <BarreFiltres onReinitialiser={liste.reinitialiser}>
                 <FiltreListe
@@ -342,6 +352,160 @@ function ChangerOperateur({ passage }) {
                 <Bouton type="submit" disabled={action.enCours}>
                     {action.enCours ? 'Enregistrement…' : 'Enregistrer l’opérateur'}
                 </Bouton>
+            </form>
+        </Bloc>
+    );
+}
+
+/**
+ * PROGRAMMER UN PASSAGE (décision du client, 18/09/2026).
+ *
+ * Le tirage dit qui travaille dans quel centre ; il ne dit pas sur quel site le
+ * kit se trouve tel jour. Sans passage, un opérateur n'a pas de site du jour —
+ * et le téléphone n'a rien à quoi rattacher un signal d'arrivée ou une feuille.
+ *
+ * LE CENTRE NE S'ENVOIE PAS : il découle du site, et le serveur le déduit. Il
+ * ne sert ici qu'à restreindre la liste des sites et celle des opérateurs.
+ */
+function ProgrammerPassage({ centres, onFini }) {
+    const action = useAction(['tournees']);
+    const [champs, setChamps] = useState({
+        centre_id: '',
+        vague_id: '',
+        site_id: '',
+        affectation_operateur_id: '',
+        date_debut: aujourdhui(),
+        date_fin: '',
+        statut: 'planifiee',
+    });
+
+    const changer = (nom) => (e) => setChamps((c) => ({
+        ...c,
+        [nom]: e.target.value,
+        // Changer de centre invalide le site et l'opérateur : ils en dépendent.
+        ...(nom === 'centre_id' ? { site_id: '', affectation_operateur_id: '' } : {}),
+    }));
+
+    const vagues = useQuery({
+        queryKey: ['vagues-programmation'],
+        queryFn: () => api.lire(avecParametres('/vagues', { par_page: 100 })),
+    });
+
+    const sites = useQuery({
+        queryKey: ['sites-du-centre', champs.centre_id],
+        queryFn: () => api.lire(avecParametres('/referentiel/sites', { centre_id: champs.centre_id, par_page: 200 })),
+        enabled: Boolean(champs.centre_id),
+    });
+
+    const operateurs = useQuery({
+        queryKey: ['operateurs-du-centre', champs.centre_id],
+        queryFn: () => api.lire(avecParametres('/equipes', { centre_id: champs.centre_id, role: 'operateur', par_page: 100 })),
+        enabled: Boolean(champs.centre_id),
+    });
+
+    // Une vague clôturée ne reçoit plus de passage : ne pas la proposer évite
+    // un refus que l'écran aurait pu éviter.
+    const vaguesOuvertes = (vagues.data?.data ?? []).filter((v) => v.statut !== 'cloturee' && v.statut !== 'annulee');
+
+    async function enregistrer(evenement) {
+        evenement.preventDefault();
+
+        const resultat = await action.lancer(() => api.creer('/tournees', {
+            vague_id: Number(champs.vague_id),
+            site_id: Number(champs.site_id),
+            affectation_operateur_id: champs.affectation_operateur_id
+                ? Number(champs.affectation_operateur_id)
+                : null,
+            date_debut: champs.date_debut,
+            date_fin: champs.date_fin || null,
+            statut: champs.statut,
+        }));
+
+        if (resultat) {
+            onFini();
+        }
+    }
+
+    return (
+        <Bloc
+            titre="Programmer un passage"
+            precision="Le kit couvre un site pendant une période. Le centre se déduit du site ; l’opérateur apporte son kit."
+        >
+            <form onSubmit={enregistrer} aria-label="Programmer un passage" className="space-y-4">
+                {action.erreur && !action.erreur.estValidation && <Echec erreur={action.erreur} />}
+
+                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                    <Champ nom="vague_id" libelle="Vague" erreurs={action.erreur?.erreurs}>
+                        <Liste id="passage-vague" value={champs.vague_id} onChange={changer('vague_id')} required>
+                            <option value="">Choisir…</option>
+                            {vaguesOuvertes.map((v) => (
+                                <option key={v.id} value={v.id}>{v.code} — {v.libelle}</option>
+                            ))}
+                        </Liste>
+                    </Champ>
+
+                    <Champ nom="centre_id" libelle="Centre" aide="Il ne s’envoie pas : il restreint les sites et les opérateurs.">
+                        <Liste id="passage-centre" value={champs.centre_id} onChange={changer('centre_id')} required>
+                            <option value="">Choisir…</option>
+                            {centres.map((centre) => (
+                                <option key={centre.id} value={centre.id}>{centre.code} — {centre.nom}</option>
+                            ))}
+                        </Liste>
+                    </Champ>
+
+                    <Champ nom="site_id" libelle="Site" erreurs={action.erreur?.erreurs}>
+                        <Liste id="passage-site" value={champs.site_id} onChange={changer('site_id')} disabled={!champs.centre_id} required>
+                            <option value="">Choisir…</option>
+                            {(sites.data?.data ?? []).map((site) => (
+                                <option key={site.id} value={site.id}>{site.code} — {site.nom}</option>
+                            ))}
+                        </Liste>
+                    </Champ>
+
+                    <Champ
+                        nom="affectation_operateur_id"
+                        libelle="Opérateur"
+                        aide="Facultatif : un passage sans porteur est un état réel, et visible."
+                        erreurs={action.erreur?.erreurs}
+                    >
+                        <Liste
+                            id="passage-operateur"
+                            value={champs.affectation_operateur_id}
+                            onChange={changer('affectation_operateur_id')}
+                            disabled={!champs.centre_id}
+                        >
+                            <option value="">Sans opérateur</option>
+                            {(operateurs.data?.data ?? []).map((affectation) => (
+                                <option key={affectation.id} value={affectation.id}>
+                                    {affectation.volontaire?.matricule} — {nomDe(affectation.volontaire?.user)}
+                                </option>
+                            ))}
+                        </Liste>
+                    </Champ>
+
+                    <Champ nom="date_debut" libelle="Premier jour" erreurs={action.erreur?.erreurs}>
+                        <Saisie id="passage-debut" type="date" value={champs.date_debut} onChange={changer('date_debut')} required />
+                    </Champ>
+
+                    <Champ nom="date_fin" libelle="Dernier jour" aide="Vide : passage sans date de fin." erreurs={action.erreur?.erreurs}>
+                        <Saisie id="passage-fin" type="date" value={champs.date_fin} onChange={changer('date_fin')} />
+                    </Champ>
+
+                    <Champ nom="statut" libelle="État" erreurs={action.erreur?.erreurs}>
+                        <Liste id="passage-statut" value={champs.statut} onChange={changer('statut')}>
+                            {Object.entries(statutsTournee).map(([valeur, s]) => (
+                                <option key={valeur} value={valeur}>{s.libelle}</option>
+                            ))}
+                        </Liste>
+                    </Champ>
+                </div>
+
+                <div className="flex gap-2">
+                    <Bouton type="submit" disabled={action.enCours || !champs.vague_id || !champs.site_id}>
+                        {action.enCours ? 'Enregistrement…' : 'Programmer le passage'}
+                    </Bouton>
+                    <Bouton type="button" variante="secondaire" onClick={onFini}>Annuler</Bouton>
+                </div>
             </form>
         </Bloc>
     );
