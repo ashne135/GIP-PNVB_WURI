@@ -360,7 +360,7 @@ describe('Remise des identifiants', () => {
         expect(screen.getByText(/1 de ces comptes n’ont pas d’accès ouvert/)).toBeInTheDocument();
 
         const formulaire = screen.getByRole('form', { name: 'Générer un bordereau' });
-        fireEvent.change(within(formulaire).getByLabelText('Session de formation'), { target: { value: 'Test mobile' } });
+        fireEvent.change(within(formulaire).getByLabelText(/^Session de formation/), { target: { value: 'Test mobile' } });
         fireEvent.click(within(formulaire).getByRole('button', { name: /Générer le bordereau de/ }));
 
         await screen.findByText('Bordereau généré pour 2 volontaires.');
@@ -569,7 +569,7 @@ describe('Les deux documents', () => {
 
         const formulaire = screen.getByRole('form', { name: 'Générer un bordereau' });
         // Le nom de session est proposé depuis la région : rien à retaper.
-        expect(within(formulaire).getByLabelText('Session de formation').value).toContain('Bankui');
+        expect(within(formulaire).getByLabelText(/^Session de formation/).value).toContain('Bankui');
 
         fireEvent.click(within(formulaire).getByRole('button', { name: /Générer le bordereau de 2 agents/ }));
 
@@ -577,5 +577,28 @@ describe('Les deux documents', () => {
             user_ids: [31, 32],
             session: expect.stringContaining('Bankui'),
         }));
+    });
+});
+
+describe('Le bouton du bordereau', () => {
+    it('s’active dès qu’une sélection commence, et dit ce qui manque s’il reste gris', async () => {
+        appels.lire.mockImplementation(lireRemises({ courriel_simule: true, sms_simule: true }));
+
+        monter(<RemiseIdentifiants />);
+
+        fireEvent.click(await screen.findByLabelText('Cocher toute la page'));
+
+        const formulaire = screen.getByRole('form', { name: 'Générer un bordereau' });
+        const champ = within(formulaire).getByLabelText(/^Session de formation/);
+        const bouton = within(formulaire).getByRole('button', { name: /Générer le bordereau de 2 agents/ });
+
+        // Sans région filtrée, le nom se remplit quand même : le bouton est actif.
+        expect(champ.value).not.toBe('');
+        expect(bouton).toBeEnabled();
+
+        // Vidé à la main, le bouton se grise ET l'écran dit pourquoi.
+        fireEvent.change(champ, { target: { value: '' } });
+        expect(bouton).toBeDisabled();
+        expect(within(formulaire).getByText('Donnez un nom à la session pour l’activer.')).toBeInTheDocument();
     });
 });

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api, avecParametres } from '../../api/client';
 import { useAuth } from '../../auth/ContexteAuth';
@@ -59,9 +59,9 @@ export function RemiseIdentifiants() {
      * — dès qu'on écrit quelque chose, c'est ce qu'on a écrit qui vaut.
      */
     const regionChoisie = (regions.data ?? []).find((r) => String(r.id) === String(liste.filtres.region_id));
-    const sessionProposee = regionChoisie
-        ? `${regionChoisie.nom} — ${new Date().toLocaleDateString('fr-FR')}`
-        : '';
+    // Toujours une proposition, région filtrée ou non : un bouton grisé parce
+    // qu'un champ est vide n'apprend rien à celui qui le regarde.
+    const sessionProposee = `${regionChoisie ? `${regionChoisie.nom} — ` : 'Remise du '}${new Date().toLocaleDateString('fr-FR')}`;
 
     const comptes = liste.data?.comptes;
     const lignes = comptes?.data ?? [];
@@ -69,6 +69,17 @@ export function RemiseIdentifiants() {
     const canaux = liste.data?.canaux ?? {};
     const tousCoches = lignes.length > 0 && lignes.every((c) => choisis.has(c.id));
     const sansAcces = [...choisis.values()].filter((c) => !peutSeConnecter(c.statut_compte)).length;
+
+    /*
+     * Dès qu'une sélection commence, le nom de session se remplit tout seul —
+     * la région filtrée quand il y en a une, la date sinon. On ne remplace
+     * jamais ce que l'utilisateur a écrit.
+     */
+    useEffect(() => {
+        if (choisis.size > 0) {
+            setSession((actuel) => actuel || sessionProposee);
+        }
+    }, [choisis.size, sessionProposee]);
 
     function basculer(compte) {
         setChoisis((actuels) => {
@@ -108,7 +119,7 @@ export function RemiseIdentifiants() {
         const resultat = await bordereau.lancer(() =>
             api.agir('/comptes/remises/bordereau', {
                 user_ids: [...choisis.keys()],
-                session: session || sessionProposee,
+                session,
             }),
         );
 
@@ -276,21 +287,34 @@ export function RemiseIdentifiants() {
                             </Bouton>
                         </div>
                         <form onSubmit={genererBordereau} className="flex flex-wrap items-end gap-2" aria-label="Générer un bordereau">
-                            <Champ nom="session" libelle="Session de formation" erreurs={bordereau.erreur?.erreurs}>
+                            <Champ
+                                nom="session"
+                                libelle="Session de formation"
+                                aide="Ce nom figure sur le bordereau et sur la trace de remise."
+                                erreurs={bordereau.erreur?.erreurs}
+                            >
                                 <Saisie
                                     id="session-bordereau"
-                                    value={session || sessionProposee}
+                                    value={session}
                                     onChange={(e) => setSession(e.target.value)}
                                     placeholder="Formation Bagassi — 18 septembre"
                                     maxLength={80}
                                     required
                                 />
                             </Champ>
-                            <Bouton type="submit" disabled={!(session || sessionProposee).trim() || bordereau.enCours || telechargement.enCours}>
-                                {bordereau.enCours || telechargement.enCours
-                                    ? 'Préparation…'
-                                    : `Générer le bordereau de ${nombre(choisis.size)} agents (avec mots de passe)`}
-                            </Bouton>
+                            <div>
+                                <Bouton type="submit" disabled={!session.trim() || bordereau.enCours || telechargement.enCours}>
+                                    {bordereau.enCours || telechargement.enCours
+                                        ? 'Préparation…'
+                                        : `Générer le bordereau de ${nombre(choisis.size)} agents (avec mots de passe)`}
+                                </Bouton>
+                                {/* Un bouton grisé sans motif n'apprend rien : on dit ce qui manque. */}
+                                {!session.trim() && (
+                                    <p className="mt-1 text-xs text-ardoise-600">
+                                        Donnez un nom à la session pour l’activer.
+                                    </p>
+                                )}
+                            </div>
                         </form>
                     </div>
                 </Bloc>
