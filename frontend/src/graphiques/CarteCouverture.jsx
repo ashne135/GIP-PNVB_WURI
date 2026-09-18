@@ -33,6 +33,56 @@ import { lienItineraire } from '../outils/itineraire';
  */
 const BURKINA_FASO = [[9.39, -5.52], [15.09, 2.41]];
 
+/**
+ * LES DEUX TEINTES DES SITES.
+ *
+ * Reprises des classes de couverture — c'est la même mesure, donc la même
+ * teinte. Le bleu le plus foncé de la rampe tient sur un fond de carte
+ * beige-gris, là où le gris clair des filets disparaissait purement et
+ * simplement.
+ */
+export const BLEU_SITE = CLASSES_COUVERTURE[CLASSES_COUVERTURE.length - 1].couleur;
+
+/**
+ * UNE ÉPINGLE, ET NON UN POINT.
+ *
+ * Un disque de 5 px se confondait avec le fond de plan : sur un écran lu en
+ * réunion, personne ne voyait les sites. Une épingle porte une ombre, une
+ * pointe qui désigne l'endroit exact, et une taille qu'on peut viser au doigt.
+ *
+ * LES DEUX ÉTATS SE DISTINGUENT PAR LA FORME AUTANT QUE PAR LA COULEUR :
+ * pleine quand le site a produit des enregistrements, creuse quand il n'en a
+ * pas. La distinction reste lisible en noir et blanc, et pour un lecteur qui
+ * confond les teintes.
+ */
+export function svgEpingle(couvert) {
+    const corps = couvert ? BLEU_SITE : viz.surface;
+    const trait = couvert ? viz.surface : BLEU_SITE;
+    const pastille = couvert ? viz.surface : BLEU_SITE;
+
+    // Aucune donnée ne passe dans ce balisage : ni nom, ni code, ni libellé.
+    return `
+        <svg width="26" height="34" viewBox="0 0 26 34" xmlns="http://www.w3.org/2000/svg"
+             style="filter: drop-shadow(0 1px 1.5px rgba(0,0,0,.45))" aria-hidden="true">
+            <path d="M13 1.5c-6 0-10.5 4.6-10.5 10.4C2.5 20.4 13 32.5 13 32.5S23.5 20.4 23.5 11.9C23.5 6.1 19 1.5 13 1.5z"
+                  fill="${corps}" stroke="${trait}" stroke-width="2.5" stroke-linejoin="round" />
+            <circle cx="13" cy="11.8" r="3.4" fill="${pastille}" />
+        </svg>`;
+}
+
+function epingle(couvert) {
+    return L.divIcon({
+        html: svgEpingle(couvert),
+        // La classe par défaut de Leaflet dessine un carré blanc bordé :
+        // la remplacer laisse l'épingle seule à l'écran.
+        className: 'pnvb-epingle',
+        iconSize: [26, 34],
+        iconAnchor: [13, 33],
+        popupAnchor: [0, -30],
+        tooltipAnchor: [0, -28],
+    });
+}
+
 function infobulle(lignes) {
     const bloc = document.createElement('div');
 
@@ -138,16 +188,18 @@ export function CarteCouverture({ regions = [], sitesCarte = null }) {
             const amas = L.markerClusterGroup({ showCoverageOnHover: false, chunkedLoading: true });
 
             sites.forEach((site) => {
-                const marqueur = L.circleMarker([site.lat, site.lng], {
-                    radius: 5,
-                    weight: 2,
-                    color: viz.surface,
-                    fillColor: site.couvert ? viz.serie : viz.axe,
-                    fillOpacity: 1,
+                const marqueur = L.marker([site.lat, site.lng], {
+                    icon: epingle(site.couvert),
+                    title: `${site.code} — ${site.nom}`,
+                    keyboard: true,
                 });
 
                 marqueur.bindTooltip(
-                    infobulle([`${site.code} — ${site.nom}`, site.couvert ? 'Enregistrements réalisés' : 'Aucun enregistrement']),
+                    infobulle([
+                        `${site.code} — ${site.nom}`,
+                        site.couvert ? 'Enregistrements réalisés' : 'Aucun enregistrement',
+                        'Cliquez pour l’itinéraire',
+                    ]),
                 );
 
                 /*
@@ -232,14 +284,28 @@ export function CarteCouverture({ regions = [], sitesCarte = null }) {
                 </span>
                 {etat.localises > 0 && (
                     <>
+                        {/*
+                          * La légende montre les DEUX FORMES, pleine et creuse,
+                          * et non deux ronds de couleurs différentes : c'est la
+                          * forme qui reste lisible en noir et blanc.
+                          */}
                         <span className="inline-flex items-center gap-1.5">
-                            <span className="inline-block h-2.5 w-2.5 rounded-full" style={{ background: viz.serie }} aria-hidden="true" />
+                            <span
+                                className="inline-block h-3 w-3 rounded-full border-2"
+                                style={{ background: BLEU_SITE, borderColor: viz.surface }}
+                                aria-hidden="true"
+                            />
                             site avec enregistrements
                         </span>
                         <span className="inline-flex items-center gap-1.5">
-                            <span className="inline-block h-2.5 w-2.5 rounded-full" style={{ background: viz.axe }} aria-hidden="true" />
+                            <span
+                                className="inline-block h-3 w-3 rounded-full border-2"
+                                style={{ background: viz.surface, borderColor: BLEU_SITE }}
+                                aria-hidden="true"
+                            />
                             site sans enregistrement
                         </span>
+                        <span className="text-ardoise-500">— cliquez un site pour son itinéraire</span>
                     </>
                 )}
             </div>

@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { etatCarte } from '../src/graphiques/etatCarte';
+import { BLEU_SITE, svgEpingle } from '../src/graphiques/CarteCouverture';
+import { CLASSES_COUVERTURE, viz } from '../src/graphiques/viz';
 import { dateCourte, dernierJourActif, debutPeriode } from '../src/pages/tableauBord/outils';
 
 /**
@@ -58,5 +60,39 @@ describe('le jour montré par le tableau de bord', () => {
     it('affiche le bon jour sur l’axe, quel que soit le fuseau du navigateur', () => {
         expect(dateCourte('2026-09-03')).toBe('03/09');
         expect(dateCourte('2026-09-03T00:00:00.000000Z')).toBe('03/09');
+    });
+});
+
+/**
+ * L'ÉPINGLE DES SITES.
+ *
+ * Le marqueur lui-même n'est pas monté — il faut Leaflet et un vrai conteneur —
+ * mais le dessin, lui, est une fonction pure : c'est là que se joue la règle
+ * d'accessibilité. Un site couvert et un site sans enregistrement doivent se
+ * distinguer par la FORME (pleine ou creuse) et pas seulement par la teinte,
+ * sans quoi la carte ne dit plus rien en noir et blanc ni pour un lecteur qui
+ * confond les couleurs.
+ */
+describe('l’épingle d’un site', () => {
+    it('remplit l’épingle d’un site qui a produit des enregistrements', () => {
+        expect(svgEpingle(true)).toContain(`fill="${BLEU_SITE}"`);
+    });
+
+    it('laisse creuse l’épingle d’un site sans enregistrement, cerclée de la même teinte', () => {
+        const creuse = svgEpingle(false);
+
+        expect(creuse).toContain(`fill="${viz.surface}"`);
+        expect(creuse).toContain(`stroke="${BLEU_SITE}"`);
+    });
+
+    it('prend la teinte la plus foncée de la rampe, et non le gris des filets', () => {
+        expect(BLEU_SITE).toBe(CLASSES_COUVERTURE[CLASSES_COUVERTURE.length - 1].couleur);
+        expect(BLEU_SITE).not.toBe(viz.axe);
+    });
+
+    it('ne fabrique aucun balisage à partir des données du site', () => {
+        // Le libellé et le code passent par des nœuds texte : rien de la base
+        // ne doit pouvoir entrer dans ce HTML.
+        expect(svgEpingle(true)).not.toMatch(/\$\{|<script/i);
     });
 });
