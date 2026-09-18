@@ -559,3 +559,59 @@ it("refuse l'export à qui n'a pas la permission", function () {
     $this->get("/api/v1/rapports/{$rapport['id']}/export/pdf")->assertForbidden();
     $this->get('/api/v1/rapports/export/csv')->assertForbidden();
 });
+
+/**
+ * LE RAPPORT D'UN SUPERVISEUR, QUI N'A PAS DE CENTRE.
+ *
+ * Le tirage ne donne PAS de centre_id à un superviseur : il en couvre deux,
+ * réunis dans une unité de supervision. Le pré-remplissage ne consultait que
+ * l'affectation et le site du jour — ni l'un ni l'autre pour lui — et laissait
+ * donc le centre vide, sur une colonne que la base refuse de laisser vide.
+ *
+ * L'ouverture partait en erreur 500. Sur le téléphone, cette erreur devenait
+ * « ces informations ne sont pas encore sur le téléphone », et l'agent
+ * actualisait en boucle sans que rien ne change.
+ *
+ * Le cas d'avant ne voyait rien : son affectation de superviseur portait un
+ * centre_id que la réalité ne lui donne jamais.
+ */
+it('ouvre le rapport d\'un superviseur rattaché à une unité, sans centre sur son affectation', function () {
+    $unite = UniteSupervision::query()
+        ->where('volontaire_superviseur_id', $this->superviseur->volontaire->id)
+        ->sole();
+
+    // L'affectation telle que le TIRAGE la crée : aucune colonne centre_id,
+    // le rattachement passe par l'unité.
+    Affectation::query()->where('volontaire_id', $this->superviseur->volontaire->id)->update([
+        'centre_id' => null,
+        'unite_supervision_id' => $unite->id,
+    ]);
+
+    Sanctum::actingAs($this->superviseur);
+
+    $reponse = $this->postJson('/api/v1/rapports/ouvrir', ['date' => $this->aujourdhui])
+        ->assertOk();
+
+    // Le rapport existe, et il est rattaché au centre PRINCIPAL de l'unité :
+    // sans centre, il ne remonterait dans aucun agrégat.
+    expect($reponse->json('data.centre_id'))->toBe($unite->centre_principal_id)
+        ->and($reponse->json('data.type'))->toBe('superviseur')
+        ->and($reponse->json('data.statut'))->toBe('brouillon');
+});
+
+it('refuse en le disant quand aucun centre ne peut être trouvé', function () {
+    // Ni centre sur l'affectation, ni unité : le cas ne devrait pas exister,
+    // mais s'il survient l'agent doit lire POURQUOI. Une erreur 500 se
+    // traduisait sur le téléphone par un écran vide et inexplicable.
+    UniteSupervision::query()->where('volontaire_superviseur_id', $this->superviseur->volontaire->id)->delete();
+    Affectation::query()->where('volontaire_id', $this->superviseur->volontaire->id)->update([
+        'centre_id' => null,
+        'unite_supervision_id' => null,
+    ]);
+
+    Sanctum::actingAs($this->superviseur);
+
+    $this->postJson('/api/v1/rapports/ouvrir', ['date' => $this->aujourdhui])
+        ->assertStatus(422)
+        ->assertJsonPath('message', fn ($message) => str_contains($message, 'aucun centre'));
+});

@@ -38,7 +38,12 @@ class ServicePreRemplissage
         // hors ligne le dernier jour et remonté après la clôture de la vague
         // s'ouvre encore, pendant le délai de rattrapage.
         $affectation = Affectation::query()
-            ->with(['centre.commune.province', 'localite', 'vague'])
+            // L'UNITÉ DE SUPERVISION est chargée avec le reste, et ce n'est pas
+            // un détail : un SUPERVISEUR n'a pas de centre_id — il couvre DEUX
+            // centres réunis dans une unité. Sans elle, son rapport n'avait
+            // aucun centre à inscrire, et l'ouverture échouait en erreur 500 sur
+            // une colonne que la base refuse de laisser vide.
+            ->with(['centre.commune.province', 'localite', 'vague', 'uniteSupervision.centrePrincipal'])
             ->where('volontaire_id', $auteur->id)
             ->couvrant($date)
             ->activeDabord()
@@ -52,12 +57,37 @@ class ServicePreRemplissage
 
         $site = $this->siteDuJour($auteur, $affectation, $date);
 
+        /*
+         * LE CENTRE DU RAPPORT, selon la catégorie de celui qui l'écrit :
+         *
+         *   OPÉRATEUR   son affectation porte le centre ;
+         *   A-OPK       il vient du site du jour ;
+         *   SUPERVISEUR ni l'un ni l'autre — il en couvre deux. Le rapport est
+         *               rattaché au centre PRINCIPAL de son unité, celui qui
+         *               nomme l'unité ; le second reste dans le détail.
+         *
+         * Le centre est OBLIGATOIRE en base : un rapport qu'on ne saurait
+         * rattacher à aucun centre ne remonterait dans aucun agrégat.
+         */
+        $centrePrincipal = $affectation->uniteSupervision?->centrePrincipal;
+        $centreId = $affectation->centre_id ?? $site?->centre_id ?? $centrePrincipal?->id;
+
+        if ($centreId === null) {
+            // Refuser en le disant vaut mieux que laisser la base refuser en
+            // erreur 500 : sur le téléphone, la première se lit, la seconde
+            // devient « ces informations ne sont pas sur le téléphone ».
+            throw new \DomainException(
+                "Votre affectation n'est rattachée à aucun centre : le rapport ne peut pas "
+                .'être ouvert. Signalez-le à l\'administration nationale.'
+            );
+        }
+
         return [
             'affectation_id' => $affectation->id,
             'vague_id' => $affectation->vague_id,
-            'centre_id' => $affectation->centre_id ?? $site?->centre_id,
+            'centre_id' => $centreId,
             'site_id' => $site?->id,
-            'region_id' => $affectation->centre?->region_id ?? $site?->region_id,
+            'region_id' => $affectation->centre?->region_id ?? $site?->region_id ?? $centrePrincipal?->region_id,
             'tournee_site_id' => $site?->tournee_courante_id,
             'superieur_volontaire_id' => $this->superieurDe($auteur, $affectation, $date)?->id,
         ];
