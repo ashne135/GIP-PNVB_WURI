@@ -11,17 +11,23 @@ import { CarteCouverture } from '../../graphiques/CarteCouverture';
 import { viz } from '../../graphiques/viz';
 import { dateLongue, nombre, pourcentage, veille } from '../../outils/format';
 import { dateCourte, debutPeriode, dernierJourActif } from './outils';
+import { BandeauVague, CartoucheParc, FilesDAttente, Section } from './composants';
 
 /**
  * LE TABLEAU DE BORD (cadrage, section 15).
  *
- * Organisation, du résumé au détail :
+ * Il répond à trois questions, dans cet ordre — et l'ordre est le design :
  *
- *   1. une seule rangée de filtres, en haut, qui gouverne tout ce qui suit ;
- *   2. les indicateurs du dernier jour actif ;
- *   3. l'évolution des enregistrements — une courbe, un seul axe ;
- *   4. la couverture par région, en barres et sur la carte ;
- *   5. les centres du jour et les localités où il faut retourner, en tableaux.
+ *   1. QUI EST DÉPLOYÉ EN CE MOMENT ?   la vague en cours, le parc de kits ;
+ *   2. QU'EST-CE QUI ATTEND QUELQU'UN ? les files, cliquables, et elles seules
+ *                                        quand elles ne sont pas vides ;
+ *   3. OÙ EN EST LA COLLECTE ?          les chiffres du jour, la courbe, la
+ *                                        couverture, les centres, les retards.
+ *
+ * Les deux premières se lisent EN DIRECT ; la troisième vient des agrégats
+ * recalculés chaque nuit, à partir des rapports VISÉS et des feuilles
+ * VALIDÉES. La date de référence est donc affichée en toutes lettres : sans
+ * elle, on croirait lire l'instant présent.
  *
  * L'EFFECTIF EST TOUJOURS AFFICHÉ AVEC SA NATURE : un pic régional au
  * national, une somme de sites dans une région. La règle « on n'additionne
@@ -42,9 +48,15 @@ const garderLePrecedent = (precedent) => precedent;
 export function TableauBord() {
     const auth = useAuth();
     const [periode, setPeriode] = useState(14);
+    const [vueCourbe, setVueCourbe] = useState('jour');
 
     const au = veille();
     const du = debutPeriode(periode);
+
+    const pilotage = useQuery({
+        queryKey: ['tableau-bord-pilotage'],
+        queryFn: () => api.lire('/tableau-bord/pilotage'),
+    });
 
     const evolution = useQuery({
         queryKey: ['tableau-bord-evolution', du, au],
@@ -75,108 +87,169 @@ export function TableauBord() {
         queryFn: () => api.lire(avecParametres('/tableau-bord/retards', { limite: 10 })),
     });
 
-    if (evolution.isPending) {
-        return <Chargement message="Chargement du tableau de bord…" />;
-    }
-
-    if (evolution.error) {
-        return <Echec erreur={evolution.error} onReessayer={evolution.refetch} />;
-    }
-
     const estompe = (requete) => (requete.isFetching && requete.data ? 'opacity-60 transition-opacity' : '');
+    const jours = evolution.data?.jours ?? [];
 
     return (
-        <>
+        <div className="space-y-8">
             <EnTetePage
                 titre="Tableau de bord"
-                sousTitre={auth.estNational ? 'Les douze régions.' : 'Votre région.'}
+                sousTitre={auth.estNational
+                    ? 'Les douze régions. Les effectifs ne s’additionnent jamais entre elles.'
+                    : 'Votre région.'}
             />
 
-            {/* Une seule rangée de filtres, qui gouverne tout ce qui suit. */}
-            <div className="flex flex-wrap items-end gap-3 rounded-lg border border-ardoise-200 bg-white px-4 py-3 shadow-sm">
-                <label className="block">
-                    <span className="mb-1 block text-xs font-medium text-ardoise-700">Période</span>
-                    <select
-                        value={periode}
-                        onChange={(e) => setPeriode(Number(e.target.value))}
-                        className="rounded border border-ardoise-300 bg-white px-3 py-2 text-sm text-ardoise-900 focus:border-pnvb-500 focus:outline-none focus:ring-2 focus:ring-pnvb-200"
-                    >
-                        {PERIODES.map((p) => (
-                            <option key={p.jours} value={p.jours}>{p.libelle}</option>
-                        ))}
-                    </select>
-                </label>
-                <p className="pb-2 text-sm text-ardoise-700">
-                    {jourSynthese
-                        ? <>Indicateurs du <span className="font-medium">{dateLongue(jourSynthese)}</span>, dernier jour avec des rapports visés.</>
-                        : 'Aucun rapport visé sur cette période.'}
-                </p>
-            </div>
-
-            {jourSynthese === null ? (
-                <Vide
-                    titre="Aucune activité sur cette période"
-                    explication={
-                        'Les indicateurs sont recalculés chaque nuit à partir des rapports VISÉS et des feuilles de '
-                        + 'présence VALIDÉES. Élargissez la période, ou attendez les premiers visas.'
-                    }
-                />
-            ) : (
-                <>
-                    {synthese.error && <Echec erreur={synthese.error} onReessayer={synthese.refetch} />}
-                    {synthese.data && <Indicateurs synthese={synthese.data} evolution={evolution.data} classe={estompe(synthese)} />}
-
-                    <div className={estompe(evolution)}>
-                        <CourbeJournaliere
-                            titre="Enregistrements par jour"
-                            sousTitre="Somme des rapports d’opérateur visés. Les jours sans activité ne figurent pas."
-                            jours={(evolution.data?.jours ?? []).map((jour) => ({ date: jour.date, valeur: Number(jour.enregistrements) }))}
-                            libelleValeur="enregistrements"
-                            formatDate={dateCourte}
-                        />
+            {/* 1. Ce qui est déployé en ce moment — lu en direct. */}
+            <Section
+                titre="Déploiement en cours"
+                precision="L’état de la plateforme à l’instant où vous lisez cet écran."
+            >
+                {pilotage.error && <Echec erreur={pilotage.error} onReessayer={pilotage.refetch} />}
+                {pilotage.isPending && <Chargement message="Chargement du déploiement…" />}
+                {pilotage.data && (
+                    <div className="grid gap-4 lg:grid-cols-3">
+                        <div className="lg:col-span-2">
+                            <BandeauVague vague={pilotage.data.vague} peut={auth.peut} />
+                        </div>
+                        {auth.peut('kits.consulter') && <CartoucheParc materiel={pilotage.data.materiel} />}
                     </div>
-                </>
-            )}
+                )}
+            </Section>
 
-            <div className="grid gap-4 xl:grid-cols-2">
-                <div>
-                    {couverture.error && <Echec erreur={couverture.error} onReessayer={couverture.refetch} />}
-                    {couverture.data && (
-                        <BarresHorizontales
-                            titre="Taux de couverture par région"
-                            sousTitre="Personnes enregistrées rapportées à la population de la région."
-                            lignes={couverture.data.map((region) => ({
-                                cle: region.code,
-                                libelle: region.nom,
-                                valeur: region.taux_couverture,
-                                precision: `${nombre(region.enregistres)} sur ${nombre(region.population)} habitants`,
-                            }))}
-                            formatValeur={(valeur) => pourcentage(valeur)}
-                            libelleNonMesurable="non mesurable : population inconnue"
-                        />
-                    )}
-                </div>
-                <div>
-                    {sitesCarte.error && <Echec erreur={sitesCarte.error} onReessayer={sitesCarte.refetch} />}
-                    <CarteCouverture regions={couverture.data ?? []} sitesCarte={sitesCarte.data ?? null} />
-                </div>
-            </div>
+            {/* 2. Ce qui attend quelqu'un — les files, et elles seules. */}
+            <Section
+                titre="À traiter"
+                precision="Chaque chiffre ouvre l’écran où l’on s’en occupe. Les files vides ne s’affichent pas."
+            >
+                {pilotage.data && <FilesDAttente pilotage={pilotage.data} peut={auth.peut} />}
+            </Section>
 
-            {jourSynthese !== null && (
-                <div className={estompe(centres)}>
-                    <ClassementCentres centres={centres.data} erreur={centres.error} jour={jourSynthese} />
-                </div>
-            )}
+            {/* 3. Où en est la collecte — les agrégats de la nuit. */}
+            <Section
+                titre="Collecte"
+                precision={jourSynthese
+                    ? `Chiffres du ${dateLongue(jourSynthese)}, dernier jour avec des rapports visés.`
+                    : 'Recalculée chaque nuit à partir des rapports visés et des feuilles validées.'}
+                actions={(
+                    <label className="block">
+                        <span className="mb-1 block text-xs font-medium text-ardoise-600">Période</span>
+                        <select
+                            value={periode}
+                            onChange={(e) => setPeriode(Number(e.target.value))}
+                            className="rounded border border-ardoise-300 bg-white px-3 py-2 text-sm text-ardoise-900 focus:border-pnvb-500 focus:outline-none focus:ring-2 focus:ring-pnvb-200"
+                        >
+                            {PERIODES.map((p) => (
+                                <option key={p.jours} value={p.jours}>{p.libelle}</option>
+                            ))}
+                        </select>
+                    </label>
+                )}
+            >
+                {evolution.isPending && <Chargement message="Chargement des chiffres…" />}
+                {evolution.error && <Echec erreur={evolution.error} onReessayer={evolution.refetch} />}
 
-            <LocalitesEnRetard retards={retards.data} erreur={retards.error} />
-        </>
+                {!evolution.isPending && !evolution.error && (jourSynthese === null ? (
+                    <Vide
+                        titre="Aucune activité sur cette période"
+                        explication={
+                            'Les indicateurs sont recalculés chaque nuit à partir des rapports VISÉS et des feuilles de '
+                            + 'présence VALIDÉES. Élargissez la période, ou attendez les premiers visas.'
+                        }
+                    />
+                ) : (
+                    <>
+                        {synthese.error && <Echec erreur={synthese.error} onReessayer={synthese.refetch} />}
+                        {synthese.data && (
+                            <Indicateurs synthese={synthese.data} jours={jours} classe={estompe(synthese)} />
+                        )}
+
+                        <div className={estompe(evolution)}>
+                            <CourbeJournaliere
+                                titre={vueCourbe === 'jour' ? 'Enregistrements par jour' : 'Enregistrements cumulés'}
+                                sousTitre={vueCourbe === 'jour'
+                                    ? 'Somme des rapports d’opérateur visés. Les jours sans activité ne figurent pas.'
+                                    : 'Cumul depuis le début de la période affichée.'}
+                                jours={jours.map((jour) => ({
+                                    date: jour.date,
+                                    valeur: Number(vueCourbe === 'jour' ? jour.enregistrements : jour.cumul),
+                                }))}
+                                libelleValeur="enregistrements"
+                                formatDate={dateCourte}
+                                actions={(
+                                    <div className="flex gap-1 rounded border border-ardoise-200 p-0.5" role="group" aria-label="Vue de la courbe">
+                                        {[
+                                            { cle: 'jour', libelle: 'Par jour' },
+                                            { cle: 'cumul', libelle: 'Cumulé' },
+                                        ].map((vue) => (
+                                            <button
+                                                key={vue.cle}
+                                                type="button"
+                                                aria-pressed={vueCourbe === vue.cle}
+                                                onClick={() => setVueCourbe(vue.cle)}
+                                                className={`rounded px-2.5 py-1 text-xs font-medium ${
+                                                    vueCourbe === vue.cle
+                                                        ? 'bg-pnvb-700 text-white'
+                                                        : 'text-ardoise-600 hover:bg-ardoise-50'
+                                                }`}
+                                            >
+                                                {vue.libelle}
+                                            </button>
+                                        ))}
+                                    </div>
+                                )}
+                            />
+                        </div>
+                    </>
+                ))}
+            </Section>
+
+            <Section
+                titre="Couverture du territoire"
+                precision="Personnes enregistrées rapportées à la population. Une région sans population connue n’est pas mesurable."
+            >
+                <div className="grid gap-4 xl:grid-cols-2">
+                    <div>
+                        {couverture.error && <Echec erreur={couverture.error} onReessayer={couverture.refetch} />}
+                        {couverture.data && (
+                            <BarresHorizontales
+                                titre="Taux de couverture par région"
+                                sousTitre="Personnes enregistrées rapportées à la population de la région."
+                                lignes={couverture.data.map((region) => ({
+                                    cle: region.code,
+                                    libelle: region.nom,
+                                    valeur: region.taux_couverture,
+                                    precision: `${nombre(region.enregistres)} sur ${nombre(region.population)} habitants`,
+                                }))}
+                                formatValeur={(valeur) => pourcentage(valeur)}
+                                libelleNonMesurable="non mesurable : population inconnue"
+                            />
+                        )}
+                    </div>
+                    <div>
+                        {sitesCarte.error && <Echec erreur={sitesCarte.error} onReessayer={sitesCarte.refetch} />}
+                        <CarteCouverture regions={couverture.data ?? []} sitesCarte={sitesCarte.data ?? null} />
+                    </div>
+                </div>
+            </Section>
+
+            <Section
+                titre="Le détail qui sert à décider"
+                precision="Les centres du jour, et les localités où il faut retourner."
+            >
+                {jourSynthese !== null && (
+                    <div className={estompe(centres)}>
+                        <ClassementCentres centres={centres.data} erreur={centres.error} jour={jourSynthese} />
+                    </div>
+                )}
+                <LocalitesEnRetard retards={retards.data} erreur={retards.error} />
+            </Section>
+        </div>
     );
 }
 
-function Indicateurs({ synthese, evolution, classe }) {
+function Indicateurs({ synthese, jours, classe }) {
     const effectif = synthese.deploiement?.effectif_simultane ?? {};
     const couverture = synthese.couverture ?? {};
-    const jours = evolution?.jours ?? [];
     const cumulPeriode = jours.reduce((total, jour) => total + Number(jour.enregistrements), 0);
 
     return (
@@ -246,7 +319,7 @@ function ClassementCentres({ centres, erreur, jour }) {
     return (
         <section className="rounded-lg border border-ardoise-200 bg-white shadow-sm">
             <header className="border-b border-ardoise-200 px-4 py-3">
-                <h2 className="text-sm font-semibold text-ardoise-900">Centres du {dateLongue(jour)}</h2>
+                <h3 className="text-sm font-semibold text-ardoise-900">Centres du {dateLongue(jour)}</h3>
                 <p className="mt-0.5 text-xs text-ardoise-600">
                     Les quinze plus productifs{centres && centres.length > 15 ? ` sur ${nombre(centres.length)}` : ''}.
                 </p>
@@ -313,7 +386,7 @@ function LocalitesEnRetard({ retards, erreur }) {
     return (
         <section className="rounded-lg border border-ardoise-200 bg-white shadow-sm">
             <header className="border-b border-ardoise-200 px-4 py-3">
-                <h2 className="text-sm font-semibold text-ardoise-900">Localités les moins couvertes</h2>
+                <h3 className="text-sm font-semibold text-ardoise-900">Localités les moins couvertes</h3>
                 <p className="mt-0.5 text-xs text-ardoise-600">
                     Parmi celles qui ont déjà eu de l’activité. Les localités sans population connue ne sont pas classées.
                 </p>

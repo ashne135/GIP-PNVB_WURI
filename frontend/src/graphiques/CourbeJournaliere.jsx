@@ -50,6 +50,7 @@ export function CourbeJournaliere({
     formatValeur = (valeur) => new Intl.NumberFormat('fr-FR').format(valeur),
     formatDate = (date) => date,
     hauteur = 240,
+    actions = null,
 }) {
     const conteneur = useRef(null);
     const largeur = useLargeur(conteneur);
@@ -128,15 +129,23 @@ export function CourbeJournaliere({
                     <p id={idTitre} className="text-sm font-semibold text-ardoise-900">{titre}</p>
                     {sousTitre && <p className="mt-0.5 text-xs text-ardoise-600">{sousTitre}</p>}
                 </div>
-                {donnees.length > 0 && (
-                    <button
-                        type="button"
-                        onClick={() => setEnTableau((valeur) => !valeur)}
-                        className="rounded border border-ardoise-300 px-2.5 py-1 text-xs text-ardoise-700 hover:bg-ardoise-50"
-                    >
-                        {enTableau ? 'Afficher le graphique' : 'Afficher le tableau'}
-                    </button>
-                )}
+                {/*
+                  * `actions` sert à changer CE QUI EST TRACÉ — par jour, en
+                  * cumul — et non à ajouter une seconde série : la règle du
+                  * seul axe tient, quelle que soit la vue choisie.
+                  */}
+                <div className="flex flex-wrap items-center gap-2">
+                    {actions}
+                    {donnees.length > 0 && (
+                        <button
+                            type="button"
+                            onClick={() => setEnTableau((valeur) => !valeur)}
+                            className="rounded border border-ardoise-300 px-2.5 py-1 text-xs text-ardoise-700 hover:bg-ardoise-50"
+                        >
+                            {enTableau ? 'Afficher le graphique' : 'Afficher le tableau'}
+                        </button>
+                    )}
+                </div>
             </figcaption>
 
             {donnees.length === 0 && (

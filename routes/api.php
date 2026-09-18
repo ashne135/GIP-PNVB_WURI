@@ -198,6 +198,7 @@ Route::prefix('v1')->name('api.')->group(function () {
 
             Route::prefix('tableau-bord')->name('tableau-bord.')->group(function () {
                 Route::get('/', [TableauBordController::class, 'synthese'])->name('synthese');
+                Route::get('pilotage', [TableauBordController::class, 'pilotage'])->name('pilotage');
                 Route::get('evolution', [TableauBordController::class, 'evolution'])->name('evolution');
                 Route::get('couverture', [TableauBordController::class, 'couverture'])->name('couverture');
                 Route::get('retards', [TableauBordController::class, 'retards'])->name('retards');

@@ -262,6 +262,148 @@ class ServiceTableauBord
             ->all();
     }
 
+    /**
+     * CE QUI APPELLE UNE ACTION — la seconde moitié du tableau de bord.
+     *
+     * Les agrégats disent ce qui S'EST PASSÉ ; ces compteurs-ci disent ce qui
+     * ATTEND QUELQU'UN : des fiches sans profil, des identifiants qui ne sont
+     * pas arrivés, des kits qu'on n'a pas récupérés, des rapports à viser, des
+     * écarts à examiner.
+     *
+     * Ils se lisent en direct, et non dans les agrégats de la nuit : une file
+     * d'attente affichée avec un jour de retard fait agir trop tard.
+     *
+     * Chaque compteur porte le PÉRIMÈTRE de l'utilisateur, par le scope du
+     * modèle concerné — jamais par une clause réécrite ici.
+     */
+    public function pilotage(User $utilisateur): array
+    {
+        return [
+            'vague' => $this->vagueEnCours($utilisateur),
+            'volontaires' => $this->fileDesVolontaires($utilisateur),
+            'terrain' => $this->fileDuTerrain($utilisateur),
+            'materiel' => $this->fileDuMateriel($utilisateur),
+        ];
+    }
+
+    /**
+     * La vague active : ce qui est déployé en ce moment, et par qui.
+     *
+     * Les effectifs sont ceux de CETTE vague : des personnes distinctes, sur
+     * une même région — ils s'additionnent sans mentir. C'est l'effectif
+     * NATIONAL qui ne s'additionne jamais, et il n'apparaît pas ici.
+     */
+    private function vagueEnCours(User $utilisateur): ?array
+    {
+        $regions = $this->regionsAccessibles($utilisateur);
+
+        $vague = \App\Models\VagueDeploiement::query()
+            ->where('statut', \App\Enums\StatutVague::Active->value)
+            ->when($regions !== null, fn ($q) => $q->whereIn('region_id', $regions))
+            ->with('region:id,code,nom')
+            ->orderByDesc('date_debut_prevue')
+            ->first();
+
+        if (! $vague) {
+            return null;
+        }
+
+        $parRole = \App\Models\Affectation::query()
+            ->where('vague_id', $vague->id)
+            ->where('statut', 'active')
+            ->selectRaw('role_terrain, count(*) as nombre')
+            ->groupBy('role_terrain')
+            ->pluck('nombre', 'role_terrain');
+
+        $centres = DB::table('vague_centres')->where('vague_id', $vague->id);
+
+        return [
+            'id' => $vague->id,
+            'code' => $vague->code,
+            'libelle' => $vague->libelle,
+            'region' => $vague->region?->nom,
+            'date_debut' => $vague->date_debut_prevue?->toDateString(),
+            'date_fin' => $vague->date_fin_prevue?->toDateString(),
+            'jours_restants' => $vague->date_fin_prevue
+                ? (int) now()->startOfDay()->diffInDays($vague->date_fin_prevue, false)
+                : null,
+            'agents' => [
+                'superviseur' => (int) ($parRole['superviseur'] ?? 0),
+                'operateur' => (int) ($parRole['operateur'] ?? 0),
+                'assistant' => (int) ($parRole['assistant'] ?? 0),
+                'total' => (int) $parRole->sum(),
+            ],
+            'centres' => [
+                'total' => (clone $centres)->count(),
+                'ouverts' => (clone $centres)->where('statut', 'ouvert')->count(),
+            ],
+        ];
+    }
+
+    /** Les fiches et les accès qui attendent quelqu'un. */
+    private function fileDesVolontaires(User $utilisateur): array
+    {
+        $comptes = \App\Models\User::query()
+            ->whereHas('volontaire', fn ($q) => $q->perimetre($utilisateur));
+
+        $parEtat = (clone $comptes)
+            ->selectRaw('etat_remise, count(*) as nombre')
+            ->groupBy('etat_remise')
+            ->pluck('nombre', 'etat_remise');
+
+        return [
+            'a_qualifier' => \App\Models\Volontaire::query()->perimetre($utilisateur)->aQualifier()->count(),
+            'sans_niveau' => \App\Models\Volontaire::query()->perimetre($utilisateur)
+                ->whereNull('niveau_etude')->count(),
+            'identifiants_non_remis' => (int) ($parEtat['non_envoye'] ?? 0) + (int) ($parEtat['echec'] ?? 0),
+            'premiere_connexion_faite' => (int) ($parEtat['premiere_connexion_effectuee'] ?? 0),
+            'acces_ouverts' => (clone $comptes)->where('statut_compte', 'actif')->count(),
+        ];
+    }
+
+    /** Ce que le terrain a envoyé et qui attend une décision. */
+    private function fileDuTerrain(User $utilisateur): array
+    {
+        $incidents = \App\Models\Incident::query()->perimetre($utilisateur)
+            ->whereIn('statut', ['nouveau', 'pris_en_charge', 'en_cours']);
+
+        return [
+            'rapports_a_viser' => \App\Models\RapportJournalier::query()->aViserPar($utilisateur)->count(),
+            'incidents_ouverts' => (clone $incidents)->count(),
+            'incidents_critiques' => (clone $incidents)->where('gravite', 4)->count(),
+            // Même condition que l'écran « incidents en retard » : une échéance
+            // d'escalade dépassée, ou une escalade déjà déclenchée.
+            'incidents_en_retard' => \App\Models\Incident::query()->perimetre($utilisateur)
+                ->where('statut', 'nouveau')
+                ->where(fn ($q) => $q->where('echeance_escalade', '<=', now())
+                    ->orWhere('niveau_escalade', '>', 0))
+                ->count(),
+            'ecarts_ouverts' => \App\Models\EcartPresence::query()->perimetre($utilisateur)
+                ->where('statut', 'ouvert')->count(),
+            'alertes_non_lues' => \App\Models\Alerte::query()
+                ->pour($utilisateur)
+                ->enCours()
+                ->whereDoesntHave('lecteurs', fn ($q) => $q->whereKey($utilisateur->id))
+                ->count(),
+        ];
+    }
+
+    /** Le parc : ce qui manque, et ce qu'on n'a pas récupéré. */
+    private function fileDuMateriel(User $utilisateur): array
+    {
+        $kits = fn () => \App\Models\Kit::query()->perimetre($utilisateur);
+
+        return [
+            'total' => $kits()->count(),
+            'disponibles' => $kits()->disponibles()->count(),
+            'hors_service' => $kits()->whereIn('etat', ['panne', 'perdu', 'vole', 'reforme'])->count(),
+            'non_restitues' => app(\App\Services\Kits\ServiceAlertesKits::class)
+                ->kitsNonRestitues()
+                ->filter(fn ($kit) => \App\Models\Kit::query()->perimetre($utilisateur)->whereKey($kit->id)->exists())
+                ->count(),
+        ];
+    }
+
     // ------------------------------------------------------------------
 
     /**

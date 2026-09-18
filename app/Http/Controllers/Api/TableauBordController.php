@@ -37,6 +37,23 @@ class TableauBordController extends Controller
         );
     }
 
+    /**
+     * CE QUI APPELLE UNE ACTION : les files d'attente, lues en direct.
+     *
+     * Les autres appels du tableau de bord lisent les agrégats de la nuit ;
+     * celui-ci compte l'existant, parce qu'une file affichée avec un jour de
+     * retard fait agir trop tard.
+     */
+    public function pilotage(Request $requete): JsonResponse
+    {
+        $this->autoriser($requete);
+
+        return ReponseApi::succes(
+            'Pilotage récupéré.',
+            $this->service->pilotage($requete->user())
+        );
+    }
+
     public function evolution(Request $requete): JsonResponse
     {
         $this->autoriser($requete);

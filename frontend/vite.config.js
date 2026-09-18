@@ -60,5 +60,8 @@ export default defineConfig({
         environment: 'jsdom',
         globals: true,
         setupFiles: './tests/preparation.js',
+        // Les attentes de Testing Library patientent jusqu'à 5 s (voir
+        // tests/preparation.js) : le délai du test doit leur laisser la place.
+        testTimeout: 20000,
     },
 });
