@@ -199,7 +199,12 @@ describe('Tableau de bord', () => {
         monter();
 
         await screen.findByText('Vague en cours');
-        fireEvent.change(screen.getByLabelText('Période'), { target: { value: '30' } });
+
+        // La période est REPLIÉE : un réglage ne doit pas occuper le haut de
+        // l'écran au-dessus des chiffres qu'on vient lire. On l'ouvre d'abord,
+        // comme le fait l'utilisateur.
+        fireEvent.click(screen.getByRole('button', { name: /Période/ }));
+        fireEvent.change(screen.getByLabelText('Période des chiffres'), { target: { value: '30' } });
 
         await waitFor(() => {
             const appelsEvolution = appels.lire.mock.calls.filter(([url]) => url.startsWith('/tableau-bord/evolution'));

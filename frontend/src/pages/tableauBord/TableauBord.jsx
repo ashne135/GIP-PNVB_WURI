@@ -4,7 +4,8 @@ import { api, avecParametres } from '../../api/client';
 import { useAuth } from '../../auth/ContexteAuth';
 import { Chargement } from '../../composants/Chargement';
 import { Echec, Vide } from '../../composants/Etats';
-import { EnTetePage, Indicateur } from '../../composants/Page';
+import { EnTetePage } from '../../composants/Page';
+import { NombreAnime, Panneau, Tuile } from '../../composants/Tuiles';
 import { CourbeJournaliere } from '../../graphiques/CourbeJournaliere';
 import { BarresHorizontales } from '../../graphiques/BarresHorizontales';
 import { CarteCouverture } from '../../graphiques/CarteCouverture';
@@ -49,6 +50,7 @@ export function TableauBord() {
     const auth = useAuth();
     const [periode, setPeriode] = useState(14);
     const [vueCourbe, setVueCourbe] = useState('jour');
+    const [filtresOuverts, setFiltresOuverts] = useState(false);
 
     const au = veille();
     const du = debutPeriode(periode);
@@ -91,7 +93,7 @@ export function TableauBord() {
     const jours = evolution.data?.jours ?? [];
 
     return (
-        <div className="space-y-8">
+        <div className="space-y-6">
             <EnTetePage
                 titre="Tableau de bord"
                 sousTitre={auth.estNational
@@ -99,40 +101,34 @@ export function TableauBord() {
                     : 'Votre région.'}
             />
 
-            {/* 1. Ce qui est déployé en ce moment — lu en direct. */}
-            <Section
-                titre="Déploiement en cours"
-                precision="L’état de la plateforme à l’instant où vous lisez cet écran."
-            >
-                {pilotage.error && <Echec erreur={pilotage.error} onReessayer={pilotage.refetch} />}
-                {pilotage.isPending && <Chargement message="Chargement du déploiement…" />}
-                {pilotage.data && (
-                    <div className="grid gap-4 lg:grid-cols-3">
-                        <div className="lg:col-span-2">
-                            <BandeauVague vague={pilotage.data.vague} peut={auth.peut} />
-                        </div>
-                        {auth.peut('kits.consulter') && <CartoucheParc materiel={pilotage.data.materiel} />}
-                    </div>
-                )}
-            </Section>
+            {/*
+              * LA PÉRIODE SE REPLIE.
+              *
+              * Elle ne sert qu'à la courbe et aux chiffres du jour ; la laisser
+              * dépliée en permanence mettrait un réglage au-dessus des chiffres
+              * qu'on vient lire. Le bouton dit quand elle n'est pas au défaut.
+              */}
+            <div className="flex justify-end">
+                <button
+                    type="button"
+                    onClick={() => setFiltresOuverts((ouvert) => !ouvert)}
+                    aria-expanded={filtresOuverts}
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-ardoise-200 bg-white px-3 py-1.5 text-sm font-medium text-ardoise-700 hover:bg-ardoise-50"
+                >
+                    Période
+                    {periode !== 14 && (
+                        <span className="rounded-full bg-pnvb-100 px-2 py-0.5 text-xs font-semibold text-pnvb-800">
+                            {periode} j
+                        </span>
+                    )}
+                    <span aria-hidden="true" className={filtresOuverts ? 'rotate-180 transition-transform' : 'transition-transform'}>⌄</span>
+                </button>
+            </div>
 
-            {/* 2. Ce qui attend quelqu'un — les files, et elles seules. */}
-            <Section
-                titre="À traiter"
-                precision="Chaque chiffre ouvre l’écran où l’on s’en occupe. Les files vides ne s’affichent pas."
-            >
-                {pilotage.data && <FilesDAttente pilotage={pilotage.data} peut={auth.peut} />}
-            </Section>
-
-            {/* 3. Où en est la collecte — les agrégats de la nuit. */}
-            <Section
-                titre="Collecte"
-                precision={jourSynthese
-                    ? `Chiffres du ${dateLongue(jourSynthese)}, dernier jour avec des rapports visés.`
-                    : 'Recalculée chaque nuit à partir des rapports visés et des feuilles validées.'}
-                actions={(
+            {filtresOuverts && (
+                <div className="flex flex-wrap items-end gap-3 rounded-xl border border-ardoise-200 bg-white px-4 py-3">
                     <label className="block">
-                        <span className="mb-1 block text-xs font-medium text-ardoise-600">Période</span>
+                        <span className="mb-1 block text-xs font-medium text-ardoise-600">Période des chiffres</span>
                         <select
                             value={periode}
                             onChange={(e) => setPeriode(Number(e.target.value))}
@@ -143,28 +139,40 @@ export function TableauBord() {
                             ))}
                         </select>
                     </label>
-                )}
-            >
-                {evolution.isPending && <Chargement message="Chargement des chiffres…" />}
-                {evolution.error && <Echec erreur={evolution.error} onReessayer={evolution.refetch} />}
+                    <p className="max-w-prose text-xs text-ardoise-600">
+                        {jourSynthese
+                            ? `Chiffres du ${dateLongue(jourSynthese)}, dernier jour avec des rapports visés.`
+                            : 'Recalculés chaque nuit à partir des rapports visés et des feuilles validées.'}
+                    </p>
+                </div>
+            )}
 
-                {!evolution.isPending && !evolution.error && (jourSynthese === null ? (
-                    <Vide
-                        titre="Aucune activité sur cette période"
-                        explication={
-                            'Les indicateurs sont recalculés chaque nuit à partir des rapports VISÉS et des feuilles de '
-                            + 'présence VALIDÉES. Élargissez la période, ou attendez les premiers visas.'
-                        }
-                    />
-                ) : (
-                    <>
-                        {synthese.error && <Echec erreur={synthese.error} onReessayer={synthese.refetch} />}
-                        {synthese.data && (
-                            <Indicateurs synthese={synthese.data} jours={jours} classe={estompe(synthese)} />
-                        )}
+            {/* 1. LES CHIFFRES, en tête : ce qu'on vient lire d'abord. */}
+            {evolution.isPending && <Chargement message="Chargement des chiffres…" />}
+            {evolution.error && <Echec erreur={evolution.error} onReessayer={evolution.refetch} />}
 
-                        <div className={estompe(evolution)}>
-                            <CourbeJournaliere
+            {!evolution.isPending && !evolution.error && (jourSynthese === null ? (
+                <Vide
+                    titre="Aucune activité sur cette période"
+                    explication={
+                        'Les indicateurs sont recalculés chaque nuit à partir des rapports VISÉS et des feuilles de '
+                        + 'présence VALIDÉES. Élargissez la période, ou attendez les premiers visas.'
+                    }
+                />
+            ) : (
+                <>
+                    {synthese.error && <Echec erreur={synthese.error} onReessayer={synthese.refetch} />}
+                    {synthese.data && (
+                        <Indicateurs
+                            synthese={synthese.data}
+                            jours={jours}
+                            classe={estompe(synthese)}
+                            jour={jourSynthese}
+                        />
+                    )}
+
+                    <div className={estompe(evolution)}>
+                        <CourbeJournaliere
                                 titre={vueCourbe === 'jour' ? 'Enregistrements par jour' : 'Enregistrements cumulés'}
                                 sousTitre={vueCourbe === 'jour'
                                     ? 'Somme des rapports d’opérateur visés. Les jours sans activité ne figurent pas.'
@@ -198,10 +206,32 @@ export function TableauBord() {
                                     </div>
                                 )}
                             />
-                        </div>
-                    </>
-                ))}
-            </Section>
+                    </div>
+                </>
+            ))}
+
+            {/* 2. QUI EST DÉPLOYÉ — lu en direct, pas dans les agrégats. */}
+            {pilotage.error && <Echec erreur={pilotage.error} onReessayer={pilotage.refetch} />}
+            {pilotage.isPending && <Chargement message="Chargement du déploiement…" />}
+            {pilotage.data && (
+                <div className="grid gap-4 lg:grid-cols-3">
+                    <div className="lg:col-span-2">
+                        <BandeauVague vague={pilotage.data.vague} peut={auth.peut} />
+                    </div>
+                    {auth.peut('kits.consulter') && <CartoucheParc materiel={pilotage.data.materiel} />}
+                </div>
+            )}
+
+            {/* 3. CE QUI ATTEND QUELQU'UN — les files, et elles seules. */}
+            {pilotage.data && (
+                <Panneau
+                    titre="À traiter"
+                    icone="rapport"
+                    precision="Chaque chiffre ouvre l’écran où l’on s’en occupe. Les files vides ne s’affichent pas."
+                >
+                    <FilesDAttente pilotage={pilotage.data} peut={auth.peut} />
+                </Panneau>
+            )}
 
             <Section
                 titre="Couverture du territoire"
@@ -247,49 +277,87 @@ export function TableauBord() {
     );
 }
 
-function Indicateurs({ synthese, jours, classe }) {
+/**
+ * LES HUIT CHIFFRES DE TÊTE.
+ *
+ * Une seule grille, qui passe de deux colonnes sur téléphone à quatre sur grand
+ * écran. L'ordre compte : la production d'abord, les effectifs ensuite, la
+ * qualité en dernier — c'est l'ordre dans lequel on lit un compte rendu.
+ *
+ * Chaque tuile porte sa PRÉCISION sous le chiffre. Elle n'est pas décorative :
+ * « pic régional, jamais un cumul » change le sens du nombre au-dessus, et le
+ * perdre ferait additionner les régions.
+ */
+function Indicateurs({ synthese, jours, classe, jour }) {
     const effectif = synthese.deploiement?.effectif_simultane ?? {};
     const couverture = synthese.couverture ?? {};
     const cumulPeriode = jours.reduce((total, jour) => total + Number(jour.enregistrements), 0);
+    const critiques = synthese.incidents_ouverts?.niveau_4 ?? 0;
 
     return (
-        <div className={`space-y-3 ${classe}`}>
-            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                <Indicateur
+        <div className={`space-y-2 ${classe}`}>
+            <p className="text-xs text-ardoise-600">
+                {jour
+                    ? `Chiffres du ${dateLongue(jour)}, dernier jour avec des rapports visés.`
+                    : 'Recalculés chaque nuit à partir des rapports visés et des feuilles validées.'}
+            </p>
+            <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-4">
+                <Tuile
+                    icone="cible"
                     libelle="Enregistrements du jour"
-                    valeur={nombre(synthese.enregistrements?.du_jour)}
+                    valeur={<NombreAnime valeur={synthese.enregistrements?.du_jour} format={nombre} />}
                     precision={`${nombre(cumulPeriode)} sur la période · ${nombre(synthese.enregistrements?.cumul)} depuis le début`}
                 />
-                <Indicateur
+                <Tuile
+                    icone="agents"
                     libelle="Effectif simultané"
-                    valeur={nombre(effectif.valeur)}
+                    valeur={<NombreAnime valeur={effectif.valeur} format={nombre} />}
                     // La nature du chiffre fait partie du chiffre.
                     precision={effectif.nature === 'pic_regional'
                         ? `Pic régional${effectif.region ? ` — ${effectif.region}` : ''}, jamais un cumul`
                         : 'Somme des sites de la région'}
                 />
-                <Indicateur
+                <Tuile
+                    icone="valide"
                     libelle="Taux de présence"
                     valeur={pourcentage(synthese.deploiement?.taux_presence)}
                     precision="Pondéré par les effectifs attendus"
                     ton={tonPresence(synthese.deploiement?.taux_presence)}
                 />
-                <Indicateur
+                <Tuile
+                    icone="site"
                     libelle="Taux de couverture"
                     valeur={couverture.taux === null || couverture.taux === undefined ? '—' : pourcentage(couverture.taux, 2)}
                     precision={`${nombre(couverture.enregistres)} sur ${nombre(couverture.population_cible)} habitants`}
                 />
-            </div>
-            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                <Indicateur libelle="Centres ouverts" valeur={nombre(synthese.deploiement?.centres_ouverts)} />
-                <Indicateur libelle="Sites couverts" valeur={nombre(synthese.deploiement?.sites_couverts)} />
-                <Indicateur
-                    libelle="Incidents ouverts"
-                    valeur={nombre(synthese.incidents_ouverts?.total)}
-                    precision={`dont ${nombre(synthese.incidents_ouverts?.niveau_4)} critiques`}
-                    ton={synthese.incidents_ouverts?.niveau_4 > 0 ? 'alerte' : 'neutre'}
+                <Tuile
+                    icone="kit"
+                    libelle="Centres ouverts"
+                    valeur={<NombreAnime valeur={synthese.deploiement?.centres_ouverts} format={nombre} />}
+                    precision="Dans votre périmètre"
+                    ton="neutre"
                 />
-                <Indicateur libelle="Rejets du jour" valeur={nombre(synthese.enregistrements?.rejetes_du_jour)} />
+                <Tuile
+                    icone="site"
+                    libelle="Sites couverts"
+                    valeur={<NombreAnime valeur={synthese.deploiement?.sites_couverts} format={nombre} />}
+                    precision="Ayant produit des enregistrements"
+                    ton="neutre"
+                />
+                <Tuile
+                    icone="alerte"
+                    libelle="Incidents ouverts"
+                    valeur={<NombreAnime valeur={synthese.incidents_ouverts?.total} format={nombre} />}
+                    precision={`dont ${nombre(critiques)} critiques`}
+                    ton={critiques > 0 ? 'alerte' : 'neutre'}
+                />
+                <Tuile
+                    icone="horloge"
+                    libelle="Rejets du jour"
+                    valeur={<NombreAnime valeur={synthese.enregistrements?.rejetes_du_jour} format={nombre} />}
+                    precision="Dossiers non validés à la saisie"
+                    ton="neutre"
+                />
             </div>
         </div>
     );
