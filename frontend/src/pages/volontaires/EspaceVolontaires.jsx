@@ -34,6 +34,13 @@ export function EspaceVolontaires() {
                 {auth.peut('volontaires.qualifier') && (
                     <NavLink to="/volontaires/a-qualifier" className={onglet}>Profils à attribuer</NavLink>
                 )}
+                {/*
+                  * Le rattachement suit la qualification : on attribue d'abord
+                  * un profil, puis on place les A-OPK sur leur site.
+                  */}
+                {auth.peut('volontaires.modifier') && (
+                    <NavLink to="/volontaires/rattachement" className={onglet}>Rattachement des A-OPK</NavLink>
+                )}
                 {auth.peut('comptes.consulter') && (
                     <NavLink to="/volontaires/identifiants" className={onglet}>Identifiants</NavLink>
                 )}

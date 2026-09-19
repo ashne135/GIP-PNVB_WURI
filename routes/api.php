@@ -20,6 +20,7 @@ use App\Http\Controllers\Api\PiecesJointesController;
 use App\Http\Controllers\Api\PresenceController;
 use App\Http\Controllers\Api\QualificationVolontairesController;
 use App\Http\Controllers\Api\RapportsController;
+use App\Http\Controllers\Api\RattachementAopkController;
 use App\Http\Controllers\Api\ReferentielController;
 use App\Http\Controllers\Api\RemiseIdentifiantsController;
 use App\Http\Controllers\Api\RemplacementsController;
@@ -156,6 +157,14 @@ Route::prefix('v1')->name('api.')->group(function () {
             */
             Route::post('volontaires/retrait-en-lot', [VolontairesController::class, 'retirerEnLot'])
                 ->name('volontaires.retrait-en-lot');
+
+            // RATTACHER LES A-OPK À UN SITE, par région ou par commune.
+            // L'assistant tient l'accueil de SA localité : c'est le seul
+            // maillon qui se décide, tout le reste en découle.
+            Route::get('volontaires/rattachement', [RattachementAopkController::class, 'index'])
+                ->name('volontaires.rattachement');
+            Route::post('volontaires/rattachement', [RattachementAopkController::class, 'rattacher'])
+                ->name('volontaires.rattachement.appliquer');
 
             // SUPPRIMER POUR DE BON : un seul point d'entrée pour les quatre
             // familles, protégé par son propre droit. Voir le contrôleur.

@@ -27,6 +27,7 @@ import { EspaceVolontaires } from './pages/volontaires/EspaceVolontaires';
 import { Registre } from './pages/volontaires/Registre';
 import { ImportVolontaires } from './pages/volontaires/ImportVolontaires';
 import { Qualification } from './pages/volontaires/Qualification';
+import { RattachementAopk } from './pages/volontaires/RattachementAopk';
 import { RemiseIdentifiants } from './pages/volontaires/RemiseIdentifiants';
 import { Vagues } from './pages/Vagues';
 import { PlanifierVague } from './pages/vagues/PlanifierVague';
@@ -129,6 +130,7 @@ export function App() {
                     <Route path="/volontaires" element={<Registre />} />
                     <Route path="/volontaires/import" element={<Protege permission="volontaires.importer"><ImportVolontaires /></Protege>} />
                     <Route path="/volontaires/a-qualifier" element={<Protege permission="volontaires.qualifier"><Qualification /></Protege>} />
+                    <Route path="/volontaires/rattachement" element={<Protege permission="volontaires.modifier"><RattachementAopk /></Protege>} />
                     <Route path="/volontaires/identifiants" element={<Protege permission="comptes.consulter"><RemiseIdentifiants /></Protege>} />
                 </Route>
                 <Route path="/vagues" element={<Protege permission="vagues.consulter"><Vagues /></Protege>} />
