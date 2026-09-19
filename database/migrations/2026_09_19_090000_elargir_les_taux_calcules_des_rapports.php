@@ -2,6 +2,7 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 /**
  * UN TAUX QUI NE TIENT PAS DANS SA COLONNE FAIT PERDRE LE RAPPORT.
@@ -58,10 +59,21 @@ return new class extends Migration
     private function redefinir(string $type): void
     {
         foreach ($this->colonnes as [$table, $colonne, $formule]) {
-            DB::statement("ALTER TABLE `{$table}` DROP COLUMN `{$colonne}`");
+            // Le DROP n'est tenté que si la colonne est là : sans cette
+            // vérification, une migration interrompue entre les deux
+            // instructions ne pouvait plus être rejouée — le DDL ne se
+            // défait pas avec la transaction.
+            if (Schema::hasColumn($table, $colonne)) {
+                DB::statement("ALTER TABLE `{$table}` DROP COLUMN `{$colonne}`");
+            }
+
+            // PAS DE « NULL » APRÈS « STORED » : MySQL l'accepte, MariaDB le
+            // refuse comme une erreur de syntaxe. Une colonne générée est
+            // nullable par sa formule, qui rend NULL quand le dénominateur
+            // est nul — l'écrire n'apportait rien et cassait la production.
             DB::statement(
                 "ALTER TABLE `{$table}` ADD COLUMN `{$colonne}` {$type} "
-                ."GENERATED ALWAYS AS ({$formule}) STORED NULL"
+                ."GENERATED ALWAYS AS ({$formule}) STORED"
             );
         }
     }
