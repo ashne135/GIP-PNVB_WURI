@@ -615,3 +615,36 @@ it('refuse en le disant quand aucun centre ne peut être trouvé', function () {
         ->assertStatus(422)
         ->assertJsonPath('message', fn ($message) => str_contains($message, 'aucun centre'));
 });
+
+/**
+ * UN OBJECTIF DE 1, ET UNE JOURNÉE NORMALE.
+ *
+ * Le taux de réalisation est une colonne CALCULÉE : réalisés × 100 / objectif.
+ * Elle tenait dans DECIMAL(6,2), donc s'arrêtait à 9 999,99 %. Un objectif de 1
+ * — valeur légitime, celle des vagues d'essai — et 200 enregistrements dans la
+ * journée donnent 20 000 %, que la base refusait d'écrire.
+ *
+ * Le rapport ENTIER était alors perdu : rejeté à la synchronisation avec la
+ * promesse qu'il passerait « à la prochaine tentative », ce qui ne pouvait pas
+ * arriver. Le téléphone réessayait sans fin.
+ */
+it('enregistre une journée normale même quand l\'objectif de la vague vaut 1', function () {
+    $this->vague->update(['objectif_enregistrements_par_kit_jour' => 1]);
+
+    Sanctum::actingAs($this->operateur);
+
+    $rapport = $this->postJson('/api/v1/rapports/ouvrir')->json('data');
+    expect($rapport['production_opk']['objectif_enregistrements'])->toBe(1);
+
+    $this->putJson("/api/v1/rapports/{$rapport['id']}", [
+        'production' => ['enregistrements_realises' => 200, 'recepisses_transmis' => 250],
+    ])->assertOk();
+
+    $production = RapportJournalier::query()->find($rapport['id'])->productionOpk;
+
+    // Le taux est JUSTE, pas plafonné : un chiffre tronqué dans un rapport
+    // signé serait un chiffre faux.
+    expect((int) $production->enregistrements_realises)->toBe(200)
+        ->and((float) $production->taux_realisation)->toBe(20000.0)
+        ->and((int) $production->ecart_enregistrements)->toBe(199);
+});

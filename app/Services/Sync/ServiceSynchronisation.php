@@ -205,8 +205,8 @@ class ServiceSynchronisation
             // Message métier, en français, destiné à l'agent.
             return ResultatElement::rejete($uuid, $cle, $rang, CodeRejet::RegleMetier, $e->getMessage());
         } catch (\Throwable $e) {
-            // La seule catégorie où réessayer a un sens : on journalise pour
-            // pouvoir corriger, et on ne fait pas tomber le reste du lot.
+            // La seule catégorie où réessayer PEUT avoir un sens : on journalise
+            // pour pouvoir corriger, et on ne fait pas tomber le reste du lot.
             Log::error('Synchronisation : échec technique sur un élément', [
                 'type' => $cle,
                 'uuid_client' => $uuid,
@@ -214,9 +214,22 @@ class ServiceSynchronisation
                 'exception' => $e->getMessage(),
             ]);
 
+            /*
+             * ON NE PROMET PLUS QUE « ce sera accepté à la prochaine tentative ».
+             *
+             * Cette phrase était fausse pour toute panne durable — un taux qui
+             * ne tenait pas dans sa colonne l'a fait échouer quatre fois de
+             * suite. L'agent lisait une promesse, le téléphone rejouait, et rien
+             * ne changeait jamais.
+             *
+             * Le travail reste sur le téléphone, c'est vrai et c'est l'essentiel
+             * à dire ; le reste est une consigne, pas une prédiction.
+             */
             return ResultatElement::rejete(
                 $uuid, $cle, $rang, CodeRejet::ErreurServeur,
-                "Le serveur n'a pas pu traiter cet élément. Il sera accepté à la prochaine tentative."
+                "Le serveur n'a pas pu traiter cet élément. Votre saisie reste sur le téléphone. "
+                .'Si le renvoi échoue encore, signalez-le : la panne est côté serveur, '
+                .'et elle est déjà enregistrée dans son journal.'
             );
         }
     }

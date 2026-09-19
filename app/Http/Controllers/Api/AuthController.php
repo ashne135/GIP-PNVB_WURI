@@ -37,6 +37,8 @@ class AuthController extends Controller
         if (RateLimiter::tooManyAttempts($cle, self::TENTATIVES_MAX)) {
             $secondes = RateLimiter::availableIn($cle);
 
+            $this->journaliserEchec($requete, 'trop_de_tentatives', ['secondes_restantes' => $secondes]);
+
             return ReponseApi::echec(
                 "Trop de tentatives de connexion. Réessayez dans {$secondes} secondes.",
                 ['secondes_restantes' => $secondes],
@@ -52,13 +54,31 @@ class AuthController extends Controller
         if (! $utilisateur || ! Hash::check($requete->validated('mot_de_passe'), $utilisateur->password)) {
             RateLimiter::hit($cle, self::BLOCAGE_SECONDES);
 
-            // Message volontairement identique dans les deux cas : ne pas
-            // révéler si le numéro existe en base.
+            /*
+             * LE JOURNAL DISTINGUE CE QUE LA RÉPONSE CONFOND.
+             *
+             * L'agent reçoit le même message dans les deux cas, et c'est
+             * délibéré : la réponse ne doit pas révéler si un numéro existe.
+             * Mais l'administrateur, lui, doit pouvoir expliquer un refus —
+             * sans cela, « ça dit identifiant incorrect » reste indémontrable.
+             *
+             * LE MOT DE PASSE N'EST JAMAIS ÉCRIT, ni en clair ni tronqué.
+             */
+            $this->journaliserEchec(
+                $requete,
+                $utilisateur ? 'mot_de_passe_incorrect' : 'numero_inconnu',
+                $utilisateur ? ['doit_changer_mot_de_passe' => (bool) $utilisateur->doit_changer_mot_de_passe] : []
+            );
+
             return ReponseApi::echec('Numéro de téléphone ou mot de passe incorrect.', null, 401);
         }
 
         if ($refus = $this->refuserSelonStatut($utilisateur)) {
             RateLimiter::hit($cle, self::BLOCAGE_SECONDES);
+
+            $this->journaliserEchec($requete, 'statut_du_compte', [
+                'statut_compte' => $utilisateur->statut_compte->value,
+            ]);
 
             return $refus;
         }
@@ -96,6 +116,24 @@ class AuthController extends Controller
      * expliquent la situation à l'agent au lieu de le laisser devant un refus
      * sec : entre deux vagues, un assistant n'a rien fait de mal.
      */
+    /**
+     * Pourquoi une connexion a été refusée, dans le journal des comptes.
+     *
+     * Écrit le NUMÉRO NORMALISÉ — celui que le serveur a comparé, qui révèle
+     * aussitôt un écart de saisie — la raison, et l'appareil. Jamais le mot de
+     * passe : ni en clair, ni haché, ni par sa longueur.
+     */
+    private function journaliserEchec(ConnexionRequest $requete, string $raison, array $details = []): void
+    {
+        \Illuminate\Support\Facades\Log::channel('pnvb_comptes')->info('echec_connexion', [
+            'telephone_normalise' => $requete->validated('telephone'),
+            'raison' => $raison,
+            'appareil' => $requete->validated('nom_appareil') ?: 'appareil-inconnu',
+            'ip' => $requete->ip(),
+            ...$details,
+        ]);
+    }
+
     private function refuserSelonStatut(User $utilisateur): ?JsonResponse
     {
         if ($utilisateur->statut_compte->autoriseConnexion()) {
